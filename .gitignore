@@ -26,3 +26,10 @@ pnpm-debug.log*
 # IDE
 .vscode/
 .idea/
+
+# Python
+backend/venv/
+backend/.env
+# Python cache
+__pycache__/
+*.pyc
