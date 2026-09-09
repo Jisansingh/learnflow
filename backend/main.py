@@ -114,10 +114,16 @@ def submit_assessment(assessment_id: str, body: SubmitAnswers):
 
 @app.get("/api/student/{student_id}")
 def get_student(student_id: str):
-    for student in students:
-        if student["id"] == student_id:
-            return student
-    raise HTTPException(status_code=404, detail="Student not found")
+    client = get_supabase_client()
+    if client is None:
+        raise HTTPException(status_code=500, detail="Failed to get student")
+    try:
+        result = client.table("students").select("*").eq("id", student_id).execute()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to get student")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return result.data[0]
 
 
 @app.get("/api/progress/{student_id}")
