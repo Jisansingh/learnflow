@@ -1,24 +1,94 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import LiquidShader from '../../components/LiquidShader';
+import { supabase } from '../../lib/supabaseClient';
+
+function getFriendlyError(message) {
+  const msg = (message || '').toLowerCase();
+  if (msg.includes('invalid login credentials')) {
+    return 'Incorrect email or password. Please try again.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'Please confirm your email address first, then sign in.';
+  }
+  if (msg.includes('rate limit')) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  return 'Could not sign you in. Please try again.';
+}
+
+// Ensures a students row exists for the authenticated user.
+// Uses students.id = auth user id. Does not create duplicates.
+// Does NOT store the learning goal because the student_goals table
+// has no "goal" column (only: id, student_id, status, target_date, created_at).
+async function ensureStudentProfile(user) {
+  if (!user) return;
+  const { data: existing, error: checkErr } = await supabase.from('students').select('id').eq('id', user.id).maybeSingle();
+  if (checkErr) return;
+  if (existing) return; // already exists, no duplicate
+  await supabase.from('students').insert({
+    id: user.id,
+    full_name: user.user_metadata?.full_name || '',
+    email: user.email,
+  });
+  // TODO: student_goals table has no "goal" column —
+  // learning goal storage deferred to later checkpoint with schema update.
+}
 
 export default function SignInPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError) {
+        setError(getFriendlyError(signInError.message));
+        return;
+      }
+      if (data.user) {
+        try {
+          await ensureStudentProfile(data.user);
+        } catch {
+          // best-effort; the account is still signed in.
+        }
+        setSubmitted(true);
+        router.push('/');
+      }
+    } catch {
+      setError('Could not sign you in. Please try again.');
+    } finally {
       setLoading(false);
-      setSubmitted(true);
-    }, 1000);
+    }
   };
+
+  // Auto-clear error message when user starts typing
+  useEffect(() => {
+    const timer = setTimeout(() => setError(''), 3000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   return (
     <div className="w-full bg-[#FAF9F5] min-h-[calc(100vh-5rem)] flex items-center justify-center py-12 px-4 md:px-12">
@@ -78,10 +148,17 @@ export default function SignInPage() {
             </p>
           </div>
 
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span>{error}</span>
+            </div>
+          )}
+
           {submitted && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-[#006c49] flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              <span>Successfully authenticated demo user! Redirecting to progress...</span>
+              <span>Signed in successfully! Taking you to LearnFlow...</span>
             </div>
           )}
 
