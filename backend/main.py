@@ -3,10 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
+from supabase import create_client
 import os
 from data import courses, resources, assessments, students, progress, assessment_answers
 
 load_dotenv()
+
+
+def get_supabase_client():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if not url or not key:
+        return None
+    return create_client(url, key)
 
 
 class SubmitAnswers(BaseModel):
@@ -48,6 +57,18 @@ def ai_test():
         return {"message": reply.choices[0].message.content}
     except Exception:
         raise HTTPException(status_code=500, detail="Groq API request failed")
+
+
+@app.get("/api/supabase-test")
+def supabase_test():
+    client = get_supabase_client()
+    if client is None:
+        raise HTTPException(status_code=500, detail="Supabase is not configured")
+    try:
+        client.table("students").select("*").limit(1).execute()
+        return {"message": "Supabase connection is working"}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Supabase connection failed")
 
 
 @app.get("/api/courses")
