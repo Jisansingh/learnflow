@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from groq import Groq
+# pyrefly: ignore [missing-import]
 from supabase import create_client
 import os
 from data import courses, resources, assessments, students, progress, assessment_answers
