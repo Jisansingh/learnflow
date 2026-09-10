@@ -46,9 +46,7 @@ export default function Navbar() {
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="flex items-center gap-1.5 font-headline tracking-tight text-[#1B1C1A]">
-            <span className="w-3 h-3 rounded-full bg-[#10B981] inline-block transition-transform group-hover:scale-125"></span>
-            <span className="w-3 h-3 rounded-full bg-[#FF72B1] inline-block transition-transform group-hover:scale-125"></span>
-            <span className="text-xl font-extrabold ml-1">LearnFlow</span>
+            <span className="text-xl font-extrabold ml-1">Learning Path</span>
           </div>
         </Link>
 

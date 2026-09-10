@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+  const pathname = usePathname();
+  // The Home page ends with its own content (no black CTA/footer area).
+  if (pathname === '/') {
+    return null;
+  }
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 

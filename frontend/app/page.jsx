@@ -46,26 +46,12 @@ export default function HomePage() {
               Explore Resources
             </Link>
           </div>
-
-          <div className="flex items-center justify-center gap-6 pt-4 text-xs md:text-sm text-stone-300 font-medium">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#10B981] text-[18px]">check_circle</span>
-              <span>No credit card required</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#10B981] text-[18px]">check_circle</span>
-              <span>Adapts to your goals</span>
-            </div>
-          </div>
         </div>
       </section>
 
       {/* 3. FEATURES GRID */}
       <section className="py-16 md:py-24 px-4 md:px-12 max-w-7xl mx-auto w-full">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-          <span className="px-3.5 py-1 rounded-full bg-[#10B981]/15 text-[#006c49] border border-[#10B981]/30 text-xs font-semibold">
-            Features & Innovation
-          </span>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1B1C1A]">
             Designed for Maximum Skill Retention
           </h2>
@@ -159,28 +145,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. BOTTOM CTA BANNER */}
-      <section className="py-20 px-4 md:px-12 bg-[#1B1C1A] text-white text-center">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="w-14 h-14 rounded-2xl bg-[#10B981]/20 border border-[#10B981]/40 text-[#10B981] flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-[32px]">rocket_launch</span>
-          </div>
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-            Ready to Accelerate Your AI Engineering Journey?
-          </h2>
-          <p className="text-stone-400 text-base md:text-lg">
-            Join thousands of developers using LearnFlow to master fullstack AI engineering with personalized paths.
-          </p>
-          <div className="pt-4">
-            <Link
-              href="/sign-up"
-              className="px-8 py-4 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-base rounded-xl transition-all shadow-xl hover:shadow-2xl inline-block"
-            >
-              Get Started Free Today
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
