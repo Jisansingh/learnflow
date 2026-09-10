@@ -9,7 +9,6 @@ export default function AssessmentsPage() {
   const [error, setError] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({});
-  const [showExplanation, setShowExplanation] = useState(true);
   const [secondsRemaining, setSecondsRemaining] = useState(28 * 60 + 45);
   const [showScore, setShowScore] = useState(false);
   const [score, setScore] = useState(null);
@@ -257,29 +256,6 @@ export default function AssessmentsPage() {
               );
             })}
           </div>
-
-          {/* Explanation Box */}
-          {selectedOptionIndex !== undefined && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between font-bold text-emerald-900">
-                <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px]">lightbulb</span>
-                  <span>Answer Rationale</span>
-                </span>
-                <button
-                  onClick={() => setShowExplanation(!showExplanation)}
-                  className="text-stone-500 hover:text-stone-900 underline"
-                >
-                  {showExplanation ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              {showExplanation && (
-                <p className="text-stone-700 leading-relaxed pt-1">
-                  No explanation available.
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Action Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-stone-100">

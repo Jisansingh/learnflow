@@ -33,7 +33,6 @@ export default function Navbar() {
     { name: 'Learning Paths', href: '/learning-paths' },
     { name: 'Assessments', href: '/assessments' },
     { name: 'Resources', href: '/resources' },
-    { name: 'Progress', href: '/progress' },
   ];
 
   const isActive = (href) => {

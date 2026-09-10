@@ -66,6 +66,11 @@ export default function ResourcesPage() {
     }));
   };
 
+  const openResource = (url) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const filteredResources = resources.filter((res) => {
     const backendCategory = categoryMap[selectedCategory];
     const matchesCategory = backendCategory === null || res.category === backendCategory;
@@ -76,8 +81,6 @@ export default function ResourcesPage() {
       (res.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
-
-  const featuredResource = resources.find((r) => r.isFeatured) || resources[0];
 
   return (
     <div className="w-full bg-[#FAF9F5] min-h-screen py-10 px-4 md:px-12 max-w-7xl mx-auto space-y-10">
@@ -139,50 +142,6 @@ export default function ResourcesPage() {
         })}
       </div>
 
-      {/* Featured Resource Hero Card */}
-      {selectedCategory === 'All' && !searchQuery && featuredResource && (
-        <div className="bg-[#1B1C1A] text-white rounded-3xl p-6 md:p-10 shadow-xl border border-stone-800 relative overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-8 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#10B981]/20 border border-[#10B981]/40 rounded-full text-xs font-semibold text-[#10B981]">
-              <span className="material-symbols-outlined text-[16px]">star</span>
-              <span>Featured Resource</span>
-            </div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white leading-snug">
-              {featuredResource.title}
-            </h2>
-            <p className="text-stone-300 text-sm leading-relaxed max-w-2xl">
-              {featuredResource.description || 'No description available'}
-            </p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-stone-400 pt-2">
-              {featuredResource.duration && (
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px] text-[#10B981]">schedule</span>
-                  {featuredResource.duration}
-                </span>
-              )}
-              {featuredResource.level && (
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px] text-[#FF72B1]">bar_chart</span>
-                  {featuredResource.level}
-                </span>
-              )}
-              {featuredResource.rating && (
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px] text-amber-400">star</span>
-                  {featuredResource.rating} Rating
-                </span>
-              )}
-            </div>
-            <div className="pt-4">
-              <button className="px-6 py-3 bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-xs rounded-xl transition-all shadow inline-flex items-center gap-2">
-                <span>View Resource</span>
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Resource Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs text-stone-500">
@@ -220,7 +179,10 @@ export default function ResourcesPage() {
                     </button>
                   </div>
 
-                  <h3 className="font-bold text-lg text-stone-900 leading-snug hover:text-[#006c49] cursor-pointer transition-colors">
+                  <h3
+                    onClick={() => openResource(res.url)}
+                    className="font-bold text-lg text-stone-900 leading-snug hover:text-[#006c49] cursor-pointer transition-colors"
+                  >
                     {res.title}
                   </h3>
 
@@ -240,9 +202,11 @@ export default function ResourcesPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-                  <span className="font-medium">{res.duration || 'N/A'}</span>
-                  <button className="font-bold text-[#006c49] hover:underline flex items-center gap-1">
+                <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-end text-xs text-stone-500">
+                  <button
+                    onClick={() => openResource(res.url)}
+                    className="font-bold text-[#006c49] hover:underline flex items-center gap-1"
+                  >
                     <span>Read Now</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </button>

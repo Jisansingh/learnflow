@@ -110,6 +110,7 @@ def get_resources():
             mapped.append({
                 "id": row.get("id", ""),
                 "title": row.get("title", ""),
+                "url": row.get("url", ""),
                 "category": row.get("resource_type", ""),
                 "type": row.get("resource_type", ""),
                 "duration": "",
