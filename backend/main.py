@@ -6,6 +6,7 @@ from groq import Groq
 # pyrefly: ignore [missing-import]
 from supabase import create_client
 import os
+from typing import Optional
 
 load_dotenv()
 
@@ -89,6 +90,8 @@ def get_courses():
                 "category": "",
                 "level": "",
                 "estimatedTime": "",
+                "completionPercentage": 0,
+                "modules": [],
             })
         return mapped
     except Exception:
@@ -109,9 +112,15 @@ def get_resources():
                 "id": row.get("id", ""),
                 "title": row.get("title", ""),
                 "category": row.get("resource_type", ""),
+                "type": row.get("resource_type", ""),
                 "duration": "",
                 "level": "",
-                "description": row.get("url", ""),
+                "author": "",
+                "rating": 0,
+                "description": "",
+                "tags": [],
+                "isFeatured": False,
+                "bookmarkCount": 0,
             })
         return mapped
     except Exception:
@@ -124,28 +133,121 @@ def get_assessments():
     if client is None:
         raise HTTPException(status_code=500, detail="Supabase is not configured")
     try:
-        # Read from exams, questions, question_options tables
-        # Return raw data first to verify connection
-        exam_result = client.table("exams").select("id, title, passing_score").execute()
-        questions_result = client.table("questions").select("id, exam_id, question_text").execute()
-        options_result = client.table("question_options").select("id, question_id, option_text, is_correct").execute()
-
+        exam_result = client.table("exams").select("id, title, passing_score, topic_id").execute()
         exams_data = exam_result.data if exam_result.data else []
+
+        if not exams_data:
+            return {"exams": [], "count": 0}
+
+        # Get questions for all exams
+        exam_ids = [e["id"] for e in exams_data]
+        questions_result = client.table("questions").select("id, exam_id, order_index, question_text").in_("exam_id", exam_ids).execute()
         questions_data = questions_result.data if questions_result.data else []
+
+        # Get options for all questions
+        question_ids = [q["id"] for q in questions_data]
+        options_result = client.table("question_options").select("id, question_id, option_text, is_correct").in_("question_id", question_ids).execute()
         options_data = options_result.data if options_result.data else []
 
+        # Build options lookup by question_id (without is_correct)
+        options_by_question = {}
+        for opt in options_data:
+            qid = opt["question_id"]
+            if qid not in options_by_question:
+                options_by_question[qid] = []
+            options_by_question[qid].append({
+                "label": chr(65 + len(options_by_question[qid])),  # A, B, C, D
+                "text": opt["option_text"],
+            })
+
+        # Build questions lookup by exam_id
+        questions_by_exam = {}
+        for q in questions_data:
+            eid = q["exam_id"]
+            if eid not in questions_by_exam:
+                questions_by_exam[eid] = []
+            qid = q["id"]
+            questions_by_exam[eid].append({
+                "id": qid,
+                "type": "Multiple Choice",
+                "topic": "General",
+                "questionText": q["question_text"],
+                "options": options_by_question.get(qid, []),
+                "explanation": "",
+            })
+
+        # Build nested response for the first exam (frontend expects single assessment)
+        first_exam = exams_data[0]
+        exam_questions = questions_by_exam.get(first_exam["id"], [])
+
         return {
-            "exams": exams_data,
-            "questions": questions_data,
-            "options": options_data,
-            "counts": {
-                "exams": len(exams_data),
-                "questions": len(questions_data),
-                "options": len(options_data),
-            }
+            "id": first_exam["id"],
+            "title": first_exam["title"],
+            "track": "Certification Track",
+            "pathName": "Learning Path",
+            "totalQuestions": len(exam_questions),
+            "timeLimitMinutes": 30,
+            "currentQuestionIndex": 0,
+            "questions": exam_questions,
+            "codeSnippet": "",
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch assessments: {str(e)[:100]}")
+
+
+@app.post("/api/assessments/{assessment_id}/submit")
+def submit_assessment(assessment_id: str, payload: SubmitAnswers):
+    client = get_supabase_client()
+    if client is None:
+        raise HTTPException(status_code=500, detail="Supabase is not configured")
+    try:
+        # Get questions for this exam
+        questions_result = client.table("questions").select("id").eq("exam_id", assessment_id).execute()
+        questions_data = questions_result.data if questions_result.data else []
+        question_ids = [q["id"] for q in questions_data]
+
+        if not question_ids:
+            raise HTTPException(status_code=404, detail="Assessment not found")
+
+        # Get correct options for these questions
+        options_result = client.table("question_options").select("id, question_id, option_text, is_correct").in_("question_id", question_ids).execute()
+        options_data = options_result.data if options_result.data else []
+
+        # Build correct answer index per question
+        correct_index_by_question = {}
+        for opt in options_data:
+            if opt.get("is_correct"):
+                qid = opt["question_id"]
+                # Find the index of this option among all options for this question
+                q_opts = [o for o in options_data if o["question_id"] == qid]
+                for idx, o in enumerate(q_opts):
+                    if o["id"] == opt["id"]:
+                        correct_index_by_question[qid] = idx
+                        break
+
+        # Calculate score
+        answers = payload.answers
+        correct_count = 0
+        total_count = len(question_ids)
+
+        for qid in question_ids:
+            submitted_idx = answers.get(str(qid))
+            if submitted_idx is not None and correct_index_by_question.get(qid) == submitted_idx:
+                correct_count += 1
+
+        score = int((correct_count / total_count) * 100) if total_count > 0 else 0
+        passed = score >= 70  # default passing threshold
+
+        return {
+            "score": score,
+            "passed": passed,
+            "correct": correct_count,
+            "total": total_count,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit assessment: {str(e)[:100]}")
 
 
 @app.get("/api/student/{student_id}")
