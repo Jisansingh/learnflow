@@ -26,7 +26,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -128,13 +128,77 @@ def get_resources():
 
 
 @app.get("/api/assessments")
-def get_assessments():
+def get_assessments(learning_path_id: str | None = None):
     client = get_supabase_client()
     if client is None:
         raise HTTPException(status_code=500, detail="Supabase is not configured")
     try:
-        exam_result = client.table("exams").select("id, title, passing_score, topic_id").execute()
-        exams_data = exam_result.data if exam_result.data else []
+        # Resolve the learning path when a filter is provided.
+        # Chain: learning_paths.id <- skills.learning_path_id
+        #        <- topics.skill_id <- exams.topic_id
+        #        <- questions.exam_id <- question_options.question_id
+        path_name = "Learning Path"
+        target_exam_ids: list | None = None
+        if learning_path_id is not None:
+            try:
+                lp_id = int(learning_path_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Invalid learning_path_id")
+            path_result = client.table("learning_paths").select("id, name").eq("id", lp_id).execute()
+            if not path_result.data:
+                raise HTTPException(status_code=404, detail="Learning path not found")
+            path_name = path_result.data[0].get("name", "Learning Path")
+
+            skills_result = client.table("skills").select("id").eq("learning_path_id", lp_id).execute()
+            skill_ids = [s["id"] for s in (skills_result.data or [])]
+            if not skill_ids:
+                return {
+                    "id": f"path-{lp_id}",
+                    "title": f"{path_name} Assessment",
+                    "track": "Certification Track",
+                    "pathName": path_name,
+                    "learning_path_id": lp_id,
+                    "totalQuestions": 0,
+                    "timeLimitMinutes": 30,
+                    "currentQuestionIndex": 0,
+                    "questions": [],
+                    "codeSnippet": "",
+                }
+            topics_result = client.table("topics").select("id").in_("skill_id", skill_ids).execute()
+            topic_ids = [t["id"] for t in (topics_result.data or [])]
+            if not topic_ids:
+                return {
+                    "id": f"path-{lp_id}",
+                    "title": f"{path_name} Assessment",
+                    "track": "Certification Track",
+                    "pathName": path_name,
+                    "learning_path_id": lp_id,
+                    "totalQuestions": 0,
+                    "timeLimitMinutes": 30,
+                    "currentQuestionIndex": 0,
+                    "questions": [],
+                    "codeSnippet": "",
+                }
+            exams_result = client.table("exams").select("id, title, passing_score, topic_id").in_("topic_id", topic_ids).execute()
+            path_exams = exams_result.data if exams_result.data else []
+            if not path_exams:
+                return {
+                    "id": f"path-{lp_id}",
+                    "title": f"{path_name} Assessment",
+                    "track": "Certification Track",
+                    "pathName": path_name,
+                    "learning_path_id": lp_id,
+                    "totalQuestions": 0,
+                    "timeLimitMinutes": 30,
+                    "currentQuestionIndex": 0,
+                    "questions": [],
+                    "codeSnippet": "",
+                }
+            target_exam_ids = [e["id"] for e in path_exams]
+            exams_data = path_exams
+        else:
+            exam_result = client.table("exams").select("id, title, passing_score, topic_id").execute()
+            exams_data = exam_result.data if exam_result.data else []
 
         if not exams_data:
             return {"exams": [], "count": 0}
@@ -176,6 +240,37 @@ def get_assessments():
                 "explanation": "",
             })
 
+        if learning_path_id is not None:
+            # Return ALL questions across every exam in this learning path.
+            # No slicing — count comes from the database.
+            all_questions = []
+            for exam in sorted(exams_data, key=lambda e: e["id"]):
+                all_questions.extend(
+                    sorted(
+                        questions_by_exam.get(exam["id"], []),
+                        key=lambda _: 0,
+                    )
+                )
+            # Keep DB order (order_index) by re-sorting on the raw rows
+            order = {(q["exam_id"], q["id"]): (q.get("order_index") or 0, q["id"]) for q in questions_data}
+            id_to_q = {}
+            for qs in questions_by_exam.values():
+                for q in qs:
+                    id_to_q[q["id"]] = q
+            all_questions = [id_to_q[qid] for (_, qid) in sorted(order, key=lambda k: (k[0], order[k])) if qid in id_to_q]
+            return {
+                "id": f"path-{lp_id}",
+                "title": f"{path_name} Assessment",
+                "track": "Certification Track",
+                "pathName": path_name,
+                "learning_path_id": lp_id,
+                "totalQuestions": len(all_questions),
+                "timeLimitMinutes": 30,
+                "currentQuestionIndex": 0,
+                "questions": all_questions,
+                "codeSnippet": "",
+            }
+
         # Build nested response for the first exam (frontend expects single assessment)
         first_exam = exams_data[0]
         exam_questions = questions_by_exam.get(first_exam["id"], [])
@@ -191,6 +286,8 @@ def get_assessments():
             "questions": exam_questions,
             "codeSnippet": "",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch assessments: {str(e)[:100]}")
 
@@ -201,10 +298,31 @@ def submit_assessment(assessment_id: str, payload: SubmitAnswers):
     if client is None:
         raise HTTPException(status_code=500, detail="Supabase is not configured")
     try:
-        # Get questions for this exam
-        questions_result = client.table("questions").select("id").eq("exam_id", assessment_id).execute()
-        questions_data = questions_result.data if questions_result.data else []
-        question_ids = [q["id"] for q in questions_data]
+        # Support both single-exam ids and aggregated learning-path ids ("path-<id>")
+        question_ids: list = []
+        if isinstance(assessment_id, str) and assessment_id.startswith("path-"):
+            try:
+                lp_id = int(assessment_id.split("path-", 1)[1])
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Invalid assessment id")
+            skills_result = client.table("skills").select("id").eq("learning_path_id", lp_id).execute()
+            skill_ids = [s["id"] for s in (skills_result.data or [])]
+            topic_ids: list = []
+            if skill_ids:
+                topics_result = client.table("topics").select("id").in_("skill_id", skill_ids).execute()
+                topic_ids = [t["id"] for t in (topics_result.data or [])]
+            exam_ids: list = []
+            if topic_ids:
+                exams_result = client.table("exams").select("id").in_("topic_id", topic_ids).execute()
+                exam_ids = [e["id"] for e in (exams_result.data or [])]
+            if exam_ids:
+                questions_result = client.table("questions").select("id").in_("exam_id", exam_ids).execute()
+                question_ids = [q["id"] for q in (questions_result.data or [])]
+        else:
+            # Get questions for this exam
+            questions_result = client.table("questions").select("id").eq("exam_id", assessment_id).execute()
+            questions_data = questions_result.data if questions_result.data else []
+            question_ids = [q["id"] for q in questions_data]
 
         if not question_ids:
             raise HTTPException(status_code=404, detail="Assessment not found")

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import LiquidShader from '../../components/LiquidShader';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, setSessionPersistence, clearPersistedSession } from '../../lib/supabaseClient';
 
 function getFriendlyError(message) {
   const msg = (message || '').toLowerCase();
@@ -43,6 +43,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -59,6 +60,9 @@ export default function SignInPage() {
       return;
     }
     setLoading(true);
+    // Route the Supabase Auth session to persistent (localStorage) or
+    // session-only (in-memory) storage before signing in.
+    setSessionPersistence(rememberMe);
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -69,6 +73,11 @@ export default function SignInPage() {
         return;
       }
       if (data.user) {
+        // Without "remember me", drop any previously persisted session so
+        // only the in-memory session remains.
+        if (!rememberMe) {
+          clearPersistedSession();
+        }
         try {
           await ensureStudentProfile(data.user);
         } catch {
@@ -112,25 +121,11 @@ export default function SignInPage() {
           {/* Center Glassmorphism Value Card */}
           <div className="relative z-10 my-auto py-6 max-w-md backdrop-blur-md bg-white/50 p-6 rounded-2xl border border-white/70 shadow-sm space-y-4">
             <h2 className="text-2xl font-bold text-stone-900 leading-snug">
-              Master skills faster with intelligent pathways.
+              Learn smarter. Grow faster.
             </h2>
             <p className="text-xs text-stone-700 leading-relaxed">
-              "Join over 10,000 learners mastering skills with AI-powered personalized paths tailored precisely to your goals."
+              Build practical skills with structured learning paths designed to help you reach your goals.
             </p>
-            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-stone-900/10">
-              <div>
-                <div className="text-base font-bold text-stone-900">10K+</div>
-                <div className="text-[10px] text-stone-600 font-medium">Active Learners</div>
-              </div>
-              <div>
-                <div className="text-base font-bold text-stone-900">94%</div>
-                <div className="text-[10px] text-stone-600 font-medium">Completion Rate</div>
-              </div>
-              <div>
-                <div className="text-base font-bold text-stone-900">200+</div>
-                <div className="text-[10px] text-stone-600 font-medium">Skill Paths</div>
-              </div>
-            </div>
           </div>
 
           {/* Footer Micro Tag */}
@@ -207,6 +202,8 @@ export default function SignInPage() {
               <input
                 type="checkbox"
                 id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="rounded border-stone-300 text-[#10B981] focus:ring-[#10B981]"
               />
               <label htmlFor="remember" className="text-xs text-stone-600 cursor-pointer">
@@ -229,24 +226,6 @@ export default function SignInPage() {
               )}
             </button>
           </form>
-
-          <div className="relative flex items-center justify-center text-xs text-stone-400 py-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-stone-200"></div>
-            </div>
-            <span className="relative bg-white px-3 text-stone-500 font-medium">Or continue with</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button className="py-2.5 px-4 border border-stone-200 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-red-500">g_mobiledata</span>
-              <span>Google</span>
-            </button>
-            <button className="py-2.5 px-4 border border-stone-200 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-stone-900">code</span>
-              <span>GitHub</span>
-            </button>
-          </div>
 
           <p className="text-center text-xs text-stone-500 pt-2">
             Don't have an account yet?{' '}

@@ -1,24 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-export default function AssessmentsPage() {
+function AssessmentsContent() {
+  const searchParams = useSearchParams();
+  const pathId = searchParams.get('pathId');
   const [courses, setCourses] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({});
-  const [secondsRemaining, setSecondsRemaining] = useState(28 * 60 + 45);
   const [showScore, setShowScore] = useState(false);
   const [score, setScore] = useState(null);
 
   useEffect(() => {
     const fetchAssessments = async () => {
+      // Do not fall back to a generic assessment when no path is selected.
+      if (!pathId) {
+        setError('No learning path selected. Please go back and choose a learning path.');
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
       try {
-        const response = await fetch('http://localhost:8000/api/assessments');
+        const response = await fetch(
+          `http://localhost:8000/api/assessments?learning_path_id=${encodeURIComponent(pathId)}`
+        );
         if (!response.ok) {
-          throw new Error('Failed to fetch assessments');
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(errBody.detail || 'Failed to fetch assessments');
         }
         const data = await response.json();
         setCourses(data);
@@ -32,14 +45,7 @@ export default function AssessmentsPage() {
     };
 
     fetchAssessments();
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [currentIdx]);
+  }, [pathId]);
 
   if (loading) {
     return (
@@ -69,11 +75,25 @@ export default function AssessmentsPage() {
 
   const assessment = courses;
 
-  const formatTimer = (secs) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  if (!assessment.questions || assessment.questions.length === 0) {
+    return (
+      <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
+        <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm text-center">
+          <span className="material-symbols-outlined text-stone-400 text-4xl mb-2 block">quiz</span>
+          <h2 className="text-lg font-semibold text-stone-900 mb-2">No questions available</h2>
+          <p className="text-stone-600 text-sm mb-6">
+            There are no assessment questions for {assessment.pathName || 'this learning path'} yet.
+          </p>
+          <Link
+            href="/learning-paths"
+            className="inline-block px-6 py-3 bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-sm rounded-xl transition-all shadow"
+          >
+            Back to Learning Paths
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const currentQ = assessment.questions[currentIdx] || assessment.questions[0];
   const selectedOptionIndex = selectedOptions[currentQ.id];
@@ -139,33 +159,10 @@ export default function AssessmentsPage() {
   return (
     <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
       {/* Top Header / Context Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-200">
-              {assessment.track}
-            </span>
-            <span className="text-stone-600 text-xs">• {assessment.pathName}</span>
-          </div>
-          <h1 className="text-3xl font-bold text-stone-900">
-            {assessment.title}
-          </h1>
-        </div>
-
-        {/* Timer & Quick Stats */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 bg-white border border-stone-200 px-4 py-3 rounded-xl shadow-sm">
-            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-200">
-              <span className="material-symbols-outlined text-[20px]">timer</span>
-            </div>
-            <div>
-              <div className="text-xs text-stone-500 font-medium">Time Remaining</div>
-              <div className="text-lg font-bold text-stone-900 font-mono">
-                {formatTimer(secondsRemaining)}
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-stone-900">
+          {assessment.title}
+        </h1>
       </div>
 
       {/* Progress Tracker Bar */}
@@ -291,14 +288,6 @@ export default function AssessmentsPage() {
         {/* Right Column: Assessment Info (Span 4) */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-stone-900 text-stone-200 rounded-2xl p-6 shadow-md border border-stone-800 space-y-4">
-            <div className="flex items-center justify-between text-xs pb-2 border-b border-stone-800">
-              <span className="flex items-center gap-2 font-mono text-stone-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                <span>{assessment.title}</span>
-              </span>
-              <span className="text-stone-500">{assessment.track}</span>
-            </div>
-
             <div className="pt-2 text-xs text-stone-400 space-y-3">
               <div className="font-semibold text-white flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px] text-[#FF72B1]">info</span>
@@ -323,5 +312,21 @@ export default function AssessmentsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AssessmentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+          </div>
+        </div>
+      }
+    >
+      <AssessmentsContent />
+    </Suspense>
   );
 }

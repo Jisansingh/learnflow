@@ -107,7 +107,7 @@ export default function LearningPathsPage() {
 
             <div className="pt-2 border-t border-[#efeeea]">
               <Link
-                href="/assessments"
+                href={`/assessments?pathId=${course.id}`}
                 className="w-full py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-xs rounded-xl transition-all shadow text-center block"
               >
                 Start Learning

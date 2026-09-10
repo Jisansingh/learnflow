@@ -193,21 +193,6 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-800 block">Primary Learning Goal</label>
-              <select
-                value="AI Engineering"
-                onChange={(e) => {}}
-                className="w-full bg-[#FAF9F5] border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-[#10B981] transition-colors"
-                disabled
-              >
-                <option value="AI Engineering">AI Engineering</option>
-                <option value="Python LLM">Python & LLM Infrastructure</option>
-                <option value="Vector Search">RAG & Vector Search Databases</option>
-                <option value="Prompt Engineering">Prompt Engineering & Agent Design</option>
-              </select>
-            </div>
-
             <div className="flex items-start gap-2 pt-1">
               <input
                 type="checkbox"
