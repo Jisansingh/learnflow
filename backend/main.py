@@ -6,7 +6,6 @@ from groq import Groq
 # pyrefly: ignore [missing-import]
 from supabase import create_client
 import os
-from typing import Optional
 
 load_dotenv()
 
@@ -276,87 +275,3 @@ def get_progress(student_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="Progress not found")
     return result.data[0]
-
-
-def find_title(items, item_id):
-    for item in items:
-        if item.get("id") == item_id:
-            return item.get("title", item.get("name", ""))
-    return item_id
-
-
-@app.get("/api/recommendations/{student_id}")
-def get_recommendations(student_id: str):
-    client = get_supabase_client()
-    # Try to get student and progress from Supabase
-    student = None
-    try:
-        s_result = client.table("students").select("*").limit(1).execute()
-        students_list = s_result.data if s_result.data else []
-        for s in students_list:
-            if s.get("id") == student_id:
-                student = s
-                break
-    except Exception:
-        pass
-
-    student_progress = None
-    try:
-        p_result = client.table("student_progress").select("*").eq("student_id", student_id).execute()
-        if p_result.data:
-            student_progress = p_result.data[0]
-    except Exception:
-        pass
-
-    if student is None or student_progress is None:
-        raise HTTPException(status_code=404, detail="Student not found or progress not found")
-
-    skills = student_progress.get("skills", [])
-    lowest = skills[0] if skills else {}
-    for skill in skills:
-        if skill.get("level", 0) < lowest.get("level", 0):
-            lowest = skill
-    highest = skills[0] if skills else {}
-    for skill in skills:
-        if skill.get("level", 0) > highest.get("level", 0):
-            highest = skill
-
-    recommendations = []
-
-    if lowest.get("level", 0) < 75:
-        if "Python" in lowest.get("skill", ""):
-            resource_id = "res-4"
-        elif "React" in lowest.get("skill", ""):
-            resource_id = "res-1"
-        else:
-            resource_id = "res-2"
-        recommendations.append(
-            {
-                "type": "resource",
-                "id": resource_id,
-                "title": find_title([], resource_id),
-                "reason": f"Your {lowest.get('skill', '')} level is {lowest.get('level', 0)}, strengthen this weakest skill first.",
-            }
-        )
-
-    if highest.get("level", 0) >= 85:
-        recommendations.append(
-            {
-                "type": "course",
-                "id": "rag-vector-search",
-                "title": find_title([], "rag-vector-search"),
-                "reason": f"Your {highest.get('skill', '')} level is {highest.get('level', 0)}, try this advanced course next.",
-            }
-        )
-
-    if student.get("level") == "Intermediate":
-        recommendations.append(
-            {
-                "type": "course",
-                "id": "python-llm-infra",
-                "title": find_title([], "python-llm-infra"),
-                "reason": "This intermediate course fits your current level.",
-            }
-        )
-
-    return {"student_id": student_id, "recommendations": recommendations}
