@@ -2,20 +2,73 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { mockAssessment } from '../../data/mockData';
 
 export default function AssessmentsPage() {
-  const [currentIdx, setCurrentIdx] = useState(3); // index 3 = Question 4
+  const [courses, setCourses] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [showExplanation, setShowExplanation] = useState(true);
-  const [secondsRemaining, setSecondsRemaining] = useState(28 * 60 + 45); // 28m 45s
+  const [secondsRemaining, setSecondsRemaining] = useState(28 * 60 + 45);
+  const [showScore, setShowScore] = useState(false);
+  const [score, setScore] = useState(null);
+
+  useEffect(() => {
+    const fetchAssessments = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/assessments');
+        if (!response.ok) {
+          throw new Error('Failed to fetch assessments');
+        }
+        const data = await response.json();
+        setCourses(data);
+        setCurrentIdx(0);
+        setSelectedOptions({});
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssessments();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [currentIdx]);
+
+  if (loading) {
+    return (
+      <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
+        <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm text-center">
+          <span className="material-symbols-outlined text-red-500 text-4xl mb-2 block">error</span>
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Assessment</h2>
+          <p className="text-stone-600 text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!courses) {
+    return null;
+  }
+
+  const assessment = courses;
 
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60);
@@ -23,7 +76,7 @@ export default function AssessmentsPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const currentQ = mockAssessment.questions[currentIdx] || mockAssessment.questions[0];
+  const currentQ = assessment.questions[currentIdx] || assessment.questions[0];
   const selectedOptionIndex = selectedOptions[currentQ.id];
 
   const handleSelectOption = (idx) => {
@@ -33,6 +86,57 @@ export default function AssessmentsPage() {
     }));
   };
 
+  const handleSubmit = async () => {
+    setShowScore(true);
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/assessments/${assessment.id}/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            answers: selectedOptions,
+          }),
+        }
+      );
+      const data = await response.json();
+      setScore(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (showScore && score) {
+    return (
+      <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
+        <div className="flex flex-col items-center justify-center pt-20">
+          <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm text-center">
+            <span className="material-symbols-outlined text-emerald-500 text-4xl mb-2 block">
+              {score.passed ? 'check_circle' : 'sentiment_dissatisfied'}
+            </span>
+            <h2 className="text-3xl font-bold text-stone-900 mb-2">
+              {score.passed ? 'Congratulations!' : 'Keep Trying'}
+            </h2>
+            <p className="text-4xl font-bold text-emerald-600 mb-4">
+              {score.score}%
+            </p>
+            <p className="text-stone-600 mb-8">
+              {score.passed ? 'You passed the assessment!' : 'Review and try again.'}
+            </p>
+            <Link
+              href="/learning-paths"
+              className="inline-block px-6 py-3 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl transition-all shadow"
+            >
+              Back to Paths
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
       {/* Top Header / Context Bar */}
@@ -40,11 +144,13 @@ export default function AssessmentsPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-200">
-              {mockAssessment.track}
+              {assessment.track}
             </span>
-            <span className="text-stone-600 text-xs">• {mockAssessment.pathName}</span>
+            <span className="text-stone-600 text-xs">• {assessment.pathName}</span>
           </div>
-          <h1 className="text-3xl font-bold text-stone-900">{mockAssessment.title}</h1>
+          <h1 className="text-3xl font-bold text-stone-900">
+            {assessment.title}
+          </h1>
         </div>
 
         {/* Timer & Quick Stats */}
@@ -67,25 +173,25 @@ export default function AssessmentsPage() {
       <div className="w-full bg-white border border-stone-200 rounded-2xl p-4 md:p-6 mb-8 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-stone-900">
-            Question {currentIdx + 1} of {mockAssessment.totalQuestions}
+            Question {currentIdx + 1} of {assessment.totalQuestions}
           </span>
           <span className="text-xs font-semibold text-[#10B981]">
-            {Math.round(((currentIdx + 1) / mockAssessment.totalQuestions) * 100)}% Complete
+            {Math.round(((currentIdx + 1) / assessment.totalQuestions) * 100)}% Complete
           </span>
         </div>
 
         <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
           <div
             className="h-full bg-[#10B981] rounded-full transition-all duration-500"
-            style={{ width: `${((currentIdx + 1) / mockAssessment.totalQuestions) * 100}%` }}
+            style={{ width: `${((currentIdx + 1) / assessment.totalQuestions) * 100}%` }}
           ></div>
         </div>
 
         {/* Question Dots Navigation */}
         <div className="flex items-center gap-2 pt-2 overflow-x-auto pb-1">
-          {Array.from({ length: mockAssessment.totalQuestions }).map((_, idx) => {
+          {Array.from({ length: assessment.totalQuestions }).map((_, idx) => {
             const isCurrent = idx === currentIdx;
-            const isAnswered = selectedOptions[mockAssessment.questions[idx]?.id] !== undefined;
+            const isAnswered = selectedOptions[assessment.questions[idx]?.id] !== undefined;
 
             return (
               <button
@@ -114,7 +220,9 @@ export default function AssessmentsPage() {
             <span className="text-xs font-semibold text-stone-900 px-3 py-1 bg-stone-100 rounded-lg border border-stone-200">
               {currentQ.type}
             </span>
-            <span className="text-xs text-stone-500 font-medium">Topic: {currentQ.topic}</span>
+            {currentQ.topic && (
+              <span className="text-xs text-stone-500 font-medium">Topic: {currentQ.topic}</span>
+            )}
           </div>
 
           <h2 className="text-xl md:text-2xl font-bold text-stone-900 leading-snug">
@@ -166,7 +274,9 @@ export default function AssessmentsPage() {
                 </button>
               </div>
               {showExplanation && (
-                <p className="text-stone-700 leading-relaxed pt-1">{currentQ.explanation}</p>
+                <p className="text-stone-700 leading-relaxed pt-1">
+                  No explanation available.
+                </p>
               )}
             </div>
           )}
@@ -182,7 +292,7 @@ export default function AssessmentsPage() {
             </button>
 
             <div className="flex items-center gap-3">
-              {currentIdx < mockAssessment.questions.length - 1 ? (
+              {currentIdx < assessment.questions.length - 1 ? (
                 <button
                   onClick={() => setCurrentIdx((prev) => prev + 1)}
                   className="px-5 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold rounded-xl transition-all shadow"
@@ -190,40 +300,48 @@ export default function AssessmentsPage() {
                   Next Question
                 </button>
               ) : (
-                <Link
-                  href="/progress"
+                <button
+                  onClick={handleSubmit}
+                  disabled={Object.keys(selectedOptions).length !== assessment.questions.length}
                   className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition-all shadow"
                 >
                   Submit Assessment
-                </Link>
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Column: Code Snippet & Reference Console (Span 4) */}
+        {/* Right Column: Assessment Info (Span 4) */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-stone-900 text-stone-200 rounded-2xl p-6 shadow-md border border-stone-800 space-y-4">
             <div className="flex items-center justify-between text-xs pb-2 border-b border-stone-800">
               <span className="flex items-center gap-2 font-mono text-stone-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                <span>code_sample.py</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span>{assessment.title}</span>
               </span>
-              <span className="text-stone-500">Python 3.11</span>
+              <span className="text-stone-500">{assessment.track}</span>
             </div>
 
-            <pre className="text-xs font-mono leading-relaxed overflow-x-auto text-emerald-400 bg-stone-950 p-4 rounded-xl border border-stone-800">
-              <code>{mockAssessment.codeSnippet}</code>
-            </pre>
-
-            <div className="pt-2 text-xs text-stone-400 space-y-2">
+            <div className="pt-2 text-xs text-stone-400 space-y-3">
               <div className="font-semibold text-white flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px] text-[#FF72B1]">info</span>
-                <span>Code Context</span>
+                <span>Assessment Info</span>
               </div>
-              <p className="leading-relaxed">
-                Review how Python handles tuple indexing attempts. Notice the exception handling block around `data_tuple[0]`.
-              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-stone-400">Total Questions</span>
+                  <span className="text-stone-200 font-semibold">{assessment.totalQuestions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">Current Question</span>
+                  <span className="text-stone-200 font-semibold">{currentIdx + 1}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-400">Answered</span>
+                  <span className="text-stone-200 font-semibold">{Object.keys(selectedOptions).length} / {assessment.totalQuestions}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
