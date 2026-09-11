@@ -59,9 +59,6 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white border border-stone-200 p-8 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 border border-stone-200 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[26px]">route</span>
-            </div>
             <h3 className="text-xl font-bold text-[#1B1C1A]">Dynamic Roadmaps</h3>
             <p className="text-sm text-stone-600 leading-relaxed">
               Paths update in real-time as you complete lessons, skipping topics you already master and expanding tricky concepts.
@@ -73,9 +70,6 @@ export default function HomePage() {
           </div>
 
           <div className="bg-white border border-stone-200 p-8 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 border border-stone-200 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[26px]">quiz</span>
-            </div>
             <h3 className="text-xl font-bold text-[#1B1C1A]">Interactive Assessments</h3>
             <p className="text-sm text-stone-600 leading-relaxed">
               Test your logic with timed quizzes, code snippet debugging, and detailed step-by-step rationale hints.
@@ -87,9 +81,6 @@ export default function HomePage() {
           </div>
 
           <div className="bg-white border border-stone-200 p-8 rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 border border-stone-200 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[26px]">insights</span>
-            </div>
             <h3 className="text-xl font-bold text-[#1B1C1A]">Real-Time Analytics</h3>
             <p className="text-sm text-stone-600 leading-relaxed">
               Track streak counters, weekly hour graphs, and verifiable skill badges ready to share on LinkedIn or resume.

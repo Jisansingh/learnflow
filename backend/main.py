@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from groq import Groq
 # pyrefly: ignore [missing-import]
 from supabase import create_client
 import os
@@ -38,38 +37,19 @@ def health():
     return {"message": "LearnFlow backend is running"}
 
 
-@app.get("/api/ai-test")
-def ai_test():
-    api_key = os.getenv("GROQ_API_KEY") or os.getenv("groq_api_key")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GROQ_API_KEY is not configured")
-    try:
-        client = Groq(api_key=api_key)
-        reply = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[
-                {
-                    "role": "user",
-                    "content": "You are testing the LearnFlow AI connection. Reply with a short sentence confirming that the AI API connection works.",
-                }
-            ],
-            max_tokens=200,
-        )
-        return {"message": reply.choices[0].message.content}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Groq API request failed")
-
-
-@app.get("/api/supabase-test")
-def supabase_test():
-    client = get_supabase_client()
-    if client is None:
-        raise HTTPException(status_code=500, detail="Supabase is not configured")
-    try:
-        client.table("students").select("*").limit(1).execute()
-        return {"message": "Supabase connection is working"}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Supabase connection failed")
+def empty_assessment(path_id, path_name):
+    return {
+        "id": f"path-{path_id}",
+        "title": f"{path_name} Assessment",
+        "track": "Certification Track",
+        "pathName": path_name,
+        "learning_path_id": path_id,
+        "totalQuestions": 0,
+        "timeLimitMinutes": 30,
+        "currentQuestionIndex": 0,
+        "questions": [],
+        "codeSnippet": "",
+    }
 
 
 @app.get("/api/courses")
@@ -138,7 +118,6 @@ def get_assessments(learning_path_id: str | None = None):
         #        <- topics.skill_id <- exams.topic_id
         #        <- questions.exam_id <- question_options.question_id
         path_name = "Learning Path"
-        target_exam_ids: list | None = None
         if learning_path_id is not None:
             try:
                 lp_id = int(learning_path_id)
@@ -152,50 +131,15 @@ def get_assessments(learning_path_id: str | None = None):
             skills_result = client.table("skills").select("id").eq("learning_path_id", lp_id).execute()
             skill_ids = [s["id"] for s in (skills_result.data or [])]
             if not skill_ids:
-                return {
-                    "id": f"path-{lp_id}",
-                    "title": f"{path_name} Assessment",
-                    "track": "Certification Track",
-                    "pathName": path_name,
-                    "learning_path_id": lp_id,
-                    "totalQuestions": 0,
-                    "timeLimitMinutes": 30,
-                    "currentQuestionIndex": 0,
-                    "questions": [],
-                    "codeSnippet": "",
-                }
+                return empty_assessment(lp_id, path_name)
             topics_result = client.table("topics").select("id").in_("skill_id", skill_ids).execute()
             topic_ids = [t["id"] for t in (topics_result.data or [])]
             if not topic_ids:
-                return {
-                    "id": f"path-{lp_id}",
-                    "title": f"{path_name} Assessment",
-                    "track": "Certification Track",
-                    "pathName": path_name,
-                    "learning_path_id": lp_id,
-                    "totalQuestions": 0,
-                    "timeLimitMinutes": 30,
-                    "currentQuestionIndex": 0,
-                    "questions": [],
-                    "codeSnippet": "",
-                }
+                return empty_assessment(lp_id, path_name)
             exams_result = client.table("exams").select("id, title, passing_score, topic_id").in_("topic_id", topic_ids).execute()
-            path_exams = exams_result.data if exams_result.data else []
-            if not path_exams:
-                return {
-                    "id": f"path-{lp_id}",
-                    "title": f"{path_name} Assessment",
-                    "track": "Certification Track",
-                    "pathName": path_name,
-                    "learning_path_id": lp_id,
-                    "totalQuestions": 0,
-                    "timeLimitMinutes": 30,
-                    "currentQuestionIndex": 0,
-                    "questions": [],
-                    "codeSnippet": "",
-                }
-            target_exam_ids = [e["id"] for e in path_exams]
-            exams_data = path_exams
+            exams_data = exams_result.data if exams_result.data else []
+            if not exams_data:
+                return empty_assessment(lp_id, path_name)
         else:
             exam_result = client.table("exams").select("id, title, passing_score, topic_id").execute()
             exams_data = exam_result.data if exam_result.data else []
@@ -203,77 +147,48 @@ def get_assessments(learning_path_id: str | None = None):
         if not exams_data:
             return {"exams": [], "count": 0}
 
-        # Get questions for all exams
-        exam_ids = [e["id"] for e in exams_data]
-        questions_result = client.table("questions").select("id, exam_id, order_index, question_text").in_("exam_id", exam_ids).execute()
+        questions_result = client.table("questions").select("id, exam_id, order_index, question_text").in_("exam_id", [e["id"] for e in exams_data]).execute()
         questions_data = questions_result.data if questions_result.data else []
 
-        # Get options for all questions
-        question_ids = [q["id"] for q in questions_data]
-        options_result = client.table("question_options").select("id, question_id, option_text, is_correct").in_("question_id", question_ids).execute()
+        options_result = client.table("question_options").select("id, question_id, option_text, is_correct").in_("question_id", [q["id"] for q in questions_data]).execute()
         options_data = options_result.data if options_result.data else []
 
-        # Build options lookup by question_id (without is_correct)
+        # Group options per question (sorted by id so labels are stable
+        # and match the scoring order in submit_assessment).
+        # Never expose is_correct to the frontend.
         options_by_question = {}
-        for opt in options_data:
-            qid = opt["question_id"]
-            if qid not in options_by_question:
-                options_by_question[qid] = []
-            options_by_question[qid].append({
-                "label": chr(65 + len(options_by_question[qid])),  # A, B, C, D
+        for opt in sorted(options_data, key=lambda o: o["id"]):
+            group = options_by_question.setdefault(opt["question_id"], [])
+            group.append({
+                "label": chr(65 + len(group)),  # A, B, C, D
                 "text": opt["option_text"],
             })
 
-        # Build questions lookup by exam_id
-        questions_by_exam = {}
+        question_by_id = {}
         for q in questions_data:
-            eid = q["exam_id"]
-            if eid not in questions_by_exam:
-                questions_by_exam[eid] = []
             qid = q["id"]
-            questions_by_exam[eid].append({
+            question_by_id[qid] = {
                 "id": qid,
                 "type": "Multiple Choice",
                 "topic": "General",
                 "questionText": q["question_text"],
                 "options": options_by_question.get(qid, []),
                 "explanation": "",
-            })
+            }
 
         if learning_path_id is not None:
-            # Return ALL questions across every exam in this learning path.
-            # No slicing — count comes from the database.
-            all_questions = []
-            for exam in sorted(exams_data, key=lambda e: e["id"]):
-                all_questions.extend(
-                    sorted(
-                        questions_by_exam.get(exam["id"], []),
-                        key=lambda _: 0,
-                    )
-                )
-            # Keep DB order (order_index) by re-sorting on the raw rows
-            order = {(q["exam_id"], q["id"]): (q.get("order_index") or 0, q["id"]) for q in questions_data}
-            id_to_q = {}
-            for qs in questions_by_exam.values():
-                for q in qs:
-                    id_to_q[q["id"]] = q
-            all_questions = [id_to_q[qid] for (_, qid) in sorted(order, key=lambda k: (k[0], order[k])) if qid in id_to_q]
-            return {
-                "id": f"path-{lp_id}",
-                "title": f"{path_name} Assessment",
-                "track": "Certification Track",
-                "pathName": path_name,
-                "learning_path_id": lp_id,
-                "totalQuestions": len(all_questions),
-                "timeLimitMinutes": 30,
-                "currentQuestionIndex": 0,
-                "questions": all_questions,
-                "codeSnippet": "",
-            }
+            # Return ALL questions across every exam in this learning path,
+            # ordered by exam, then by each question's order_index.
+            ordered = sorted(questions_data, key=lambda q: (q["exam_id"], q.get("order_index") or 0, q["id"]))
+            all_questions = [question_by_id[q["id"]] for q in ordered]
+            response = empty_assessment(lp_id, path_name)
+            response["totalQuestions"] = len(all_questions)
+            response["questions"] = all_questions
+            return response
 
         # Build nested response for the first exam (frontend expects single assessment)
         first_exam = exams_data[0]
-        exam_questions = questions_by_exam.get(first_exam["id"], [])
+        exam_questions = [question_by_id[q["id"]] for q in questions_data if q["exam_id"] == first_exam["id"]]
 
         return {
             "id": first_exam["id"],
@@ -327,21 +242,23 @@ def submit_assessment(assessment_id: str, payload: SubmitAnswers):
         if not question_ids:
             raise HTTPException(status_code=404, detail="Assessment not found")
 
-        # Get correct options for these questions
+        # Get options for these questions
         options_result = client.table("question_options").select("id, question_id, option_text, is_correct").in_("question_id", question_ids).execute()
         options_data = options_result.data if options_result.data else []
 
-        # Build correct answer index per question
+        # Group options per question (sorted by id to match the label
+        # order returned by get_assessments), then record each
+        # question's correct option index.
+        options_by_question = {}
+        for opt in sorted(options_data, key=lambda o: o["id"]):
+            options_by_question.setdefault(opt["question_id"], []).append(opt)
+
         correct_index_by_question = {}
-        for opt in options_data:
-            if opt.get("is_correct"):
-                qid = opt["question_id"]
-                # Find the index of this option among all options for this question
-                q_opts = [o for o in options_data if o["question_id"] == qid]
-                for idx, o in enumerate(q_opts):
-                    if o["id"] == opt["id"]:
-                        correct_index_by_question[qid] = idx
-                        break
+        for qid, q_opts in options_by_question.items():
+            for idx, o in enumerate(q_opts):
+                if o.get("is_correct"):
+                    correct_index_by_question[qid] = idx
+                    break
 
         # Calculate score
         answers = payload.answers
