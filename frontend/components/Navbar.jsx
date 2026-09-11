@@ -58,7 +58,7 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`transition-all text-body-md px-3 py-1.5 rounded-lg text-sm md:text-base font-medium ${
+                className={`transition-all px-3 py-1.5 rounded-lg text-sm md:text-base font-medium ${
                   active
                     ? 'text-[#1B1C1A] font-semibold bg-stone-200/60 border border-stone-300 shadow-sm'
                     : 'text-stone-600 hover:text-[#1B1C1A] hover:bg-stone-100/50'
