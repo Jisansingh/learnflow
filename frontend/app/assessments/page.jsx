@@ -51,7 +51,7 @@ function AssessmentsContent() {
     return (
       <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-300 border-t-stone-900"></div>
         </div>
       </div>
     );
@@ -86,7 +86,7 @@ function AssessmentsContent() {
           </p>
           <Link
             href="/learning-paths"
-            className="inline-block px-6 py-3 bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-sm rounded-xl transition-all shadow"
+            className="inline-block px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-sm rounded-xl transition-all shadow"
           >
             Back to Learning Paths
           </Link>
@@ -132,13 +132,13 @@ function AssessmentsContent() {
       <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
         <div className="flex flex-col items-center justify-center pt-20">
           <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm text-center">
-            <span className="material-symbols-outlined text-emerald-500 text-4xl mb-2 block">
+            <span className="material-symbols-outlined text-stone-900 text-4xl mb-2 block">
               {score.passed ? 'check_circle' : 'sentiment_dissatisfied'}
             </span>
             <h2 className="text-3xl font-bold text-stone-900 mb-2">
               {score.passed ? 'Congratulations!' : 'Keep Trying'}
             </h2>
-            <p className="text-4xl font-bold text-emerald-600 mb-4">
+            <p className="text-4xl font-bold text-stone-900 mb-4">
               {score.score}%
             </p>
             <p className="text-stone-600 mb-8">
@@ -146,7 +146,7 @@ function AssessmentsContent() {
             </p>
             <Link
               href="/learning-paths"
-              className="inline-block px-6 py-3 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl transition-all shadow"
+              className="inline-block px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-semibold rounded-xl transition-all shadow"
             >
               Back to Paths
             </Link>
@@ -171,14 +171,14 @@ function AssessmentsContent() {
           <span className="text-sm font-bold text-stone-900">
             Question {currentIdx + 1} of {assessment.totalQuestions}
           </span>
-          <span className="text-xs font-semibold text-[#10B981]">
+          <span className="text-xs font-semibold text-stone-700">
             {Math.round(((currentIdx + 1) / assessment.totalQuestions) * 100)}% Complete
           </span>
         </div>
 
         <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
           <div
-            className="h-full bg-[#10B981] rounded-full transition-all duration-500"
+            className="h-full bg-stone-900 rounded-full transition-all duration-500"
             style={{ width: `${((currentIdx + 1) / assessment.totalQuestions) * 100}%` }}
           ></div>
         </div>
@@ -195,9 +195,9 @@ function AssessmentsContent() {
                 onClick={() => setCurrentIdx(idx)}
                 className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center shrink-0 ${
                   isCurrent
-                    ? 'bg-white text-stone-900 border-2 border-[#10B981] shadow-sm scale-105'
+                    ? 'bg-white text-stone-900 border-2 border-stone-900 shadow-sm'
                     : isAnswered
-                    ? 'bg-[#10B981] text-white'
+                    ? 'bg-stone-900 text-white border-2 border-stone-900'
                     : 'bg-stone-100 border border-stone-200 text-stone-600 hover:bg-stone-200'
                 }`}
               >
@@ -235,14 +235,14 @@ function AssessmentsContent() {
                   onClick={() => handleSelectOption(oIdx)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 ${
                     isSelected
-                      ? 'bg-emerald-50/70 border-[#10B981] ring-1 ring-[#10B981]'
+                      ? 'bg-stone-100 border-stone-900 ring-1 ring-stone-900'
                       : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'
                   }`}
                 >
                   <div
                     className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 border transition-colors ${
                       isSelected
-                        ? 'bg-[#10B981] text-white border-[#10B981]'
+                        ? 'bg-stone-900 text-white border-stone-900'
                         : 'bg-stone-100 border-stone-300 text-stone-700'
                     }`}
                   >
@@ -268,7 +268,7 @@ function AssessmentsContent() {
               {currentIdx < assessment.questions.length - 1 ? (
                 <button
                   onClick={() => setCurrentIdx((prev) => prev + 1)}
-                  className="px-5 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold rounded-xl transition-all shadow"
+                  className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition-all shadow"
                 >
                   Next Question
                 </button>
@@ -290,7 +290,7 @@ function AssessmentsContent() {
           <div className="bg-stone-900 text-stone-200 rounded-2xl p-6 shadow-md border border-stone-800 space-y-4">
             <div className="pt-2 text-xs text-stone-400 space-y-3">
               <div className="font-semibold text-white flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-[#FF72B1]">info</span>
+                <span className="material-symbols-outlined text-[16px] text-stone-300">info</span>
                 <span>Assessment Info</span>
               </div>
               <div className="space-y-2">
@@ -321,7 +321,7 @@ export default function AssessmentsPage() {
       fallback={
         <div className="w-full bg-[#FAF9F5] min-h-screen py-8 px-4 md:px-12 max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-300 border-t-stone-900"></div>
           </div>
         </div>
       }

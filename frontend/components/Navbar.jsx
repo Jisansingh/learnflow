@@ -79,7 +79,7 @@ export default function Navbar() {
               </span>
               <button
                 onClick={handleLogout}
-                className="text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow"
+                className="text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow"
               >
                 Log Out
               </button>
@@ -94,7 +94,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/sign-up"
-                className="text-sm font-semibold text-white bg-[#10B981] hover:bg-[#059669] px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow"
+                className="text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow"
               >
                 Sign Up
               </Link>
@@ -147,7 +147,7 @@ export default function Navbar() {
               <>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-center py-2.5 text-white font-semibold rounded-xl bg-[#10B981] shadow-sm"
+                  className="w-full text-center py-2.5 text-white font-semibold rounded-xl bg-stone-900 shadow-sm"
                 >
                   Log Out
                 </button>
@@ -164,7 +164,7 @@ export default function Navbar() {
                 <Link
                   href="/sign-up"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 text-white font-semibold rounded-xl bg-[#10B981] shadow-sm"
+                  className="w-full text-center py-2.5 text-white font-semibold rounded-xl bg-stone-900 shadow-sm"
                 >
                   Sign Up
                 </Link>

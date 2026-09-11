@@ -33,7 +33,7 @@ export default function ResourcesPage() {
     return (
       <div className="w-full bg-[#FAF9F5] min-h-screen py-10 px-4 md:px-12 max-w-7xl mx-auto">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-300 border-t-stone-900"></div>
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ export default function ResourcesPage() {
       {/* Header & Search Bar */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <span className="text-xs font-semibold text-[#006c49] uppercase tracking-wider">
+          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
             Knowledge Library
           </span>
           <h1 className="text-3xl md:text-4xl font-bold text-[#1b1c1a] mt-1">
@@ -105,7 +105,7 @@ export default function ResourcesPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by topic, tag, or title..."
-            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-[#10B981] shadow-sm pr-10"
+            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-stone-400 shadow-sm pr-10"
           />
           {searchQuery ? (
             <button
@@ -132,7 +132,7 @@ export default function ResourcesPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
                 active
-                  ? 'bg-[#10B981] text-white border-[#10B981] shadow-sm'
+                  ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
                   : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100'
               }`}
             >
@@ -165,7 +165,7 @@ export default function ResourcesPage() {
                       onClick={() => toggleBookmark(res.id)}
                       className={`p-1.5 rounded-lg border transition-colors ${
                         isBookmarked
-                          ? 'bg-pink-50 border-pink-200 text-[#b4136d]'
+                          ? 'bg-stone-900 border-stone-900 text-white'
                           : 'bg-stone-50 border-stone-200 text-stone-400 hover:text-stone-700'
                       }`}
                       aria-label="Bookmark resource"
@@ -181,7 +181,7 @@ export default function ResourcesPage() {
 
                   <h3
                     onClick={() => openResource(res.url)}
-                    className="font-bold text-lg text-stone-900 leading-snug hover:text-[#006c49] cursor-pointer transition-colors"
+                    className="font-bold text-lg text-stone-900 leading-snug hover:text-stone-600 cursor-pointer transition-colors"
                   >
                     {res.title}
                   </h3>
@@ -205,7 +205,7 @@ export default function ResourcesPage() {
                 <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-end text-xs text-stone-500">
                   <button
                     onClick={() => openResource(res.url)}
-                    className="font-bold text-[#006c49] hover:underline flex items-center gap-1"
+                    className="font-bold text-stone-900 hover:underline flex items-center gap-1"
                   >
                     <span>Read Now</span>
                     <span className="material-symbols-outlined text-[14px]">arrow_forward</span>

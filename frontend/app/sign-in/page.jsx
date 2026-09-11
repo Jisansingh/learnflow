@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import LiquidShader from '../../components/LiquidShader';
 import { supabase, setSessionPersistence, clearPersistedSession } from '../../lib/supabaseClient';
 
 function getFriendlyError(message) {
@@ -101,41 +100,9 @@ export default function SignInPage() {
 
   return (
     <div className="w-full bg-[#FAF9F5] min-h-[calc(100vh-5rem)] flex items-center justify-center py-12 px-4 md:px-12">
-      <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 bg-white rounded-3xl border border-stone-200 shadow-xl overflow-hidden min-h-[600px]">
-        {/* Left Side: Interactive Liquid WebGL Hero Panel (5 cols) */}
-        <div className="lg:col-span-5 relative overflow-hidden bg-stone-100 p-8 md:p-12 flex flex-col justify-between hidden lg:flex">
-          {/* Animated Liquid WebGL Shader Background */}
-          <LiquidShader />
-
-          {/* Top Brand / Back Link */}
-          <div className="relative z-10 flex items-center justify-between">
-            <Link
-              href="/"
-              className="text-xs font-semibold text-stone-800 backdrop-blur-md bg-white/60 hover:bg-white/80 px-3.5 py-2 rounded-xl border border-white/70 shadow-sm transition-all flex items-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-              <span>Back to Home</span>
-            </Link>
-          </div>
-
-          {/* Center Glassmorphism Value Card */}
-          <div className="relative z-10 my-auto py-6 max-w-md backdrop-blur-md bg-white/50 p-6 rounded-2xl border border-white/70 shadow-sm space-y-4">
-            <h2 className="text-2xl font-bold text-stone-900 leading-snug">
-              Learn smarter. Grow faster.
-            </h2>
-            <p className="text-xs text-stone-700 leading-relaxed">
-              Build practical skills with structured learning paths designed to help you reach your goals.
-            </p>
-          </div>
-
-          {/* Footer Micro Tag */}
-          <div className="relative z-10 text-[11px] text-stone-600 backdrop-blur-md bg-white/50 px-3 py-1 rounded-lg inline-block w-fit border border-white/60">
-            © 2026 LearnFlow. All rights reserved.
-          </div>
-        </div>
-
-        {/* Right Side Form (Span 7) */}
-        <div className="lg:col-span-7 p-8 md:p-12 flex flex-col justify-center space-y-6">
+      <div className="max-w-md w-full bg-white rounded-3xl border border-stone-200 shadow-xl overflow-hidden">
+        {/* Sign In Form */}
+        <div className="p-8 md:p-12 flex flex-col justify-center space-y-6">
           <div className="space-y-2">
             <h1 className="text-2xl md:text-3xl font-bold text-stone-900">Sign In to LearnFlow</h1>
             <p className="text-xs text-stone-500">
@@ -151,7 +118,7 @@ export default function SignInPage() {
           )}
 
           {submitted && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-[#006c49] flex items-center gap-2">
+            <div className="p-4 bg-stone-100 border border-stone-200 rounded-xl text-xs text-stone-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">check_circle</span>
               <span>Signed in successfully! Taking you to LearnFlow...</span>
             </div>
@@ -166,14 +133,14 @@ export default function SignInPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
-                className="w-full bg-[#FAF9F5] border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-[#10B981] transition-colors"
+                className="w-full bg-[#FAF9F5] border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-stone-400 transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-stone-800">Password</label>
-                <span className="text-xs text-[#006c49] hover:underline cursor-pointer font-semibold">
+                <span className="text-xs text-stone-900 hover:underline cursor-pointer font-semibold">
                   Forgot password?
                 </span>
               </div>
@@ -184,7 +151,7 @@ export default function SignInPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-[#FAF9F5] border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-[#10B981] transition-colors pr-10"
+                  className="w-full bg-[#FAF9F5] border border-stone-200 rounded-xl px-4 py-3 text-xs text-stone-900 focus:outline-none focus:border-stone-400 transition-colors pr-10"
                 />
                 <button
                   type="button"
@@ -204,7 +171,7 @@ export default function SignInPage() {
                 id="remember"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded border-stone-300 text-[#10B981] focus:ring-[#10B981]"
+                className="rounded border-stone-300 text-stone-900 focus:ring-stone-400"
               />
               <label htmlFor="remember" className="text-xs text-stone-600 cursor-pointer">
                 Keep me signed in for 30 days
@@ -214,7 +181,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
             >
               {loading ? (
                 <span className="animate-spin material-symbols-outlined text-[18px]">progress_activity</span>
@@ -229,7 +196,7 @@ export default function SignInPage() {
 
           <p className="text-center text-xs text-stone-500 pt-2">
             Don't have an account yet?{' '}
-            <Link href="/sign-up" className="font-bold text-[#006c49] hover:underline">
+            <Link href="/sign-up" className="font-bold text-stone-900 hover:underline">
               Create a free account
             </Link>
           </p>

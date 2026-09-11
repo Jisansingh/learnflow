@@ -31,7 +31,7 @@ export default function LearningPathsPage() {
     return (
       <div className="w-full bg-[#FAF9F5] min-h-screen py-10 px-4 md:px-12 max-w-7xl mx-auto">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-3 border-[#10B981] border-t-transparent"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-300 border-t-stone-900"></div>
         </div>
       </div>
     );
@@ -53,7 +53,7 @@ export default function LearningPathsPage() {
     <div className="w-full bg-[#FAF9F5] min-h-screen py-10 px-4 md:px-12 max-w-7xl mx-auto">
       {/* Header Section */}
       <div className="mb-8">
-        <span className="text-xs font-semibold text-[#006c49] uppercase tracking-wider">
+        <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
           Learning Paths
         </span>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1b1c1a] mt-1">
@@ -76,7 +76,7 @@ export default function LearningPathsPage() {
                 {course.category || 'General'}
               </span>
               {course.estimatedTime && (
-                <span className="text-xs text-[#3c4a42]">Estimated: {course.estimatedTime}</span>
+                <span className="text-xs text-stone-600">Estimated: {course.estimatedTime}</span>
               )}
             </div>
             <h3 className="font-bold text-lg text-[#1b1c1a] mb-2">{course.title}</h3>
@@ -108,7 +108,7 @@ export default function LearningPathsPage() {
             <div className="pt-2 border-t border-[#efeeea]">
               <Link
                 href={`/assessments?pathId=${course.id}`}
-                className="w-full py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-semibold text-xs rounded-xl transition-all shadow text-center block"
+                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs rounded-xl transition-all shadow text-center block"
               >
                 Start Learning
               </Link>

@@ -29,8 +29,6 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center gap-1.5 font-headline tracking-tight text-white">
-              <span className="w-3 h-3 rounded-full bg-[#10B981] inline-block"></span>
-              <span className="w-3 h-3 rounded-full bg-[#FF72B1] inline-block"></span>
               <span className="text-xl font-extrabold ml-1">LearnFlow</span>
             </div>
             <p className="text-sm text-stone-400 max-w-sm leading-relaxed">
@@ -40,7 +38,7 @@ export default function Footer() {
               {['code', 'terminal', 'hub', 'rocket_launch'].map((iconName, idx) => (
                 <div
                   key={idx}
-                  className="w-9 h-9 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-center text-stone-300 hover:text-[#10B981] hover:border-[#10B981]/50 cursor-pointer transition-all"
+                  className="w-9 h-9 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-center text-stone-300 hover:text-white hover:border-stone-500 cursor-pointer transition-all"
                 >
                   <span className="material-symbols-outlined text-[18px]">{iconName}</span>
                 </div>
@@ -95,18 +93,18 @@ export default function Footer() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#10B981] flex-1"
+                  className="bg-stone-900 border border-stone-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-stone-500 flex-1"
                   required
                 />
                 <button
                   type="submit"
-                  className="bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow"
+                  className="bg-white hover:bg-stone-200 text-stone-900 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow"
                 >
                   Join
                 </button>
               </div>
               {subscribed && (
-                <p className="text-xs text-[#10B981] flex items-center gap-1 mt-1">
+                <p className="text-xs text-stone-300 flex items-center gap-1 mt-1">
                   <span className="material-symbols-outlined text-[14px]">check_circle</span>
                   Successfully subscribed!
                 </p>
@@ -121,7 +119,7 @@ export default function Footer() {
           <div className="flex items-center gap-6">
             <span className="hover:text-stone-300 cursor-pointer transition-colors">Privacy Policy</span>
             <span className="hover:text-stone-300 cursor-pointer transition-colors">Terms of Service</span>
-            <span className="hover:text-stone-[#10B981] cursor-pointer transition-colors">Security</span>
+            <span className="hover:text-stone-300 cursor-pointer transition-colors">Security</span>
           </div>
         </div>
       </div>
