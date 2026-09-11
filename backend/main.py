@@ -114,9 +114,6 @@ def get_assessments(learning_path_id: str | None = None):
         raise HTTPException(status_code=500, detail="Supabase is not configured")
     try:
         # Resolve the learning path when a filter is provided.
-        # Chain: learning_paths.id <- skills.learning_path_id
-        #        <- topics.skill_id <- exams.topic_id
-        #        <- questions.exam_id <- question_options.question_id
         path_name = "Learning Path"
         if learning_path_id is not None:
             try:
@@ -177,8 +174,6 @@ def get_assessments(learning_path_id: str | None = None):
             }
 
         if learning_path_id is not None:
-            # Return ALL questions across every exam in this learning path,
-            # ordered by exam, then by each question's order_index.
             ordered = sorted(questions_data, key=lambda q: (q["exam_id"], q.get("order_index") or 0, q["id"]))
             all_questions = [question_by_id[q["id"]] for q in ordered]
             response = empty_assessment(lp_id, path_name)
@@ -213,7 +208,6 @@ def submit_assessment(assessment_id: str, payload: SubmitAnswers):
     if client is None:
         raise HTTPException(status_code=500, detail="Supabase is not configured")
     try:
-        # Support both single-exam ids and aggregated learning-path ids ("path-<id>")
         question_ids: list = []
         if isinstance(assessment_id, str) and assessment_id.startswith("path-"):
             try:
