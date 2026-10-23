@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login - Learning App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="common.js"></script>
+<style>
+  body { font-family: Georgia, serif; background: #fff; color: #000; margin: 0; padding: 56px 6vw 72px; }
+  .wrap { display: flex; flex-wrap: wrap; align-items: flex-start; }
+  .about { flex: 0 1 440px; }
+  h1 { font-size: 40px; margin: 0 0 20px; }
+  .intro { font-size: 16px; line-height: 1.65; text-align: left; hyphens: none; margin: 0; }
+  .auth { flex: 0 1 380px; margin: 56px auto 0; }
+  h2 { margin: 0 0 8px; }
+  form { margin-top: 8px; }
+  label { display: block; margin: 16px 0 0; font-weight: bold; }
+  @media (max-width: 760px) {
+    body { padding: 32px 20px 48px; }
+    h1 { font-size: 32px; }
+    .auth { flex-basis: 100%; margin: 40px 0 0; }
+  }
+  input, select { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; border: 1px solid #000; font-size: 15px; }
+  button { background: #000; color: #fff; border: none; padding: 10px 22px; font-size: 15px; cursor: pointer; margin-top: 8px; }
+  button:disabled { background: #888; cursor: wait; }
+  a { color: #000; }
+  #error-msg { border: 2px solid #000; background: #eee; padding: 10px; font-weight: bold; }
+  #success-msg { border: 1px solid #000; padding: 10px; }
+  .hint { font-size: 13px; }
+  .choice label { display: inline; font-weight: normal; margin: 0 16px 0 0; }
+  .choice input { width: auto; margin: 0 4px 0 0; }
+</style>
+</head>
+<body>
+<h1>Learning App</h1>
+<p class="intro">LearnFlow is a personalized learning platform that helps students choose learning paths and build skills step by step. It brings course-specific resources, practice assessments, and progress tracking together in one place. Students can monitor their progress, identify areas where they need improvement, and continue learning at their own pace in a structured way.</p>
+<div class="wrap">
+<div class="auth">
+<h2 id="form-title">Login</h2>
+<form id="login-form" onsubmit="handleLogin(event)">
+<p><label>Email<br><input type="text" id="login-email" autocomplete="email" required></label></p>
+<p id="login-password-row"><label>Password<br><input type="password" id="login-password" autocomplete="current-password" required></label></p>
+<p><button type="submit" id="login-btn">Login</button></p>
+<p class="hint"><a href="#" id="code-login-link" onclick="toggleCodeLogin(event)">Use an email code instead</a></p>
+</form>
+<form id="signup-form" onsubmit="handleSignup(event)" hidden>
+<p class="choice"><b>Sign up as</b><br><label><input type="radio" name="signup-role" value="student" checked onchange="onRoleChange()">Student</label><label><input type="radio" name="signup-role" value="teacher" onchange="onRoleChange()">Teacher</label></p>
+<p><label>Full Name<br><input type="text" id="signup-name" autocomplete="name" required></label></p>
+<p><label>Email Address<br><input type="email" id="signup-email" autocomplete="email" required></label></p>
+<p><label>Password<br><input type="password" id="signup-password" autocomplete="new-password" minlength="6" required></label></p>
+<p id="signup-course-row"><label>Interested Course<br><select id="signup-course" required><option value="">Loading courses...</option></select></label></p>
+<div id="clerk-captcha"></div>
+<p><button type="submit" id="signup-btn">Sign Up</button></p>
+</form>
+<form id="verify-form" onsubmit="handleVerify(event)" hidden>
+<p id="verify-text">Enter the verification code sent to your email.</p>
+<p><label>Verification Code<br><input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="8" required></label></p>
+<p><button type="submit" id="verify-btn">Verify</button></p>
+<p class="hint"><a href="#" id="resend-link" onclick="handleResend(event)">Resend code</a></p>
+</form>
+<p id="error-msg" hidden></p>
+<p id="success-msg" hidden></p>
+<p><span id="toggle-text">Don't have an account?</span> <a href="#" id="toggle-link" onclick="toggleMode(event)">Sign up</a></p>
+</div>
+</div>
+<script>
+let mode = 'login';
+let codeLogin = false;  // passwordless email-code login (for migrated users without a Clerk password yet)
+let clerk = null;
+let clerkReady = false;
+let busy = false;  // re-entrancy guard against duplicate clicks while a request is in flight
+let pending = JSON.parse(localStorage.getItem('pendingProfile') || 'null') || {};
+function setAuthReady(ready) {
+  clerkReady = ready;
+  document.getElementById('login-btn').disabled = !ready;
+  document.getElementById('signup-btn').disabled = !ready;
+}
+async function boot() {
+  setAuthReady(false);
+  try {
+    clerk = await loadClerk();
+    if (!clerk) { showError('Authentication is not configured. Set the Clerk publishable key and reload.'); return; }
+    setAuthReady(true);
+    if (clerk.session) afterAuth().catch(err => showError(networkMessage(err, 'Could not resume your session.')));  // already signed in
+  } catch (err) {
+    diag('boot', err);
+    showError('Could not load authentication (' + networkMessage(err, 'Clerk could not be loaded') + '). Check your connection and reload.');
+  }
+}
+function networkMessage(err, fallback) {
+  const msg = (err && err.message) || '';
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'network error. Check your connection and try again.';
+  return msg || fallback || 'unknown error.';
+}
+function diag(stage, err) {
+  // Safe diagnostics: Clerk error code + status only. Never email, password, code, token, or keys.
+  try {
+    const e = err && err.errors && err.errors[0];
+    console.info('[learnflow-auth:' + stage + ']', { code: (e && e.code) || 'none', status: err && err.status });
+  } catch (ignored) { /* diagnostics must never break auth */ }
+}
+function clerkError(err, fallback) {
+  if (!err) return fallback;
+  if (err.status === 429) return 'Too many attempts. Wait a minute, then resend the code and try again.';
+  const e = err.errors && err.errors[0];
+  const code = (e && e.code) || '';
+  const msg = (e && (e.longMessage || e.message)) || err.message || '';
+  if (/network|fetch/i.test(msg)) return networkMessage(err, fallback);
+  if (/identifier_exists|already exists|already registered|taken/i.test(code + ' ' + msg))
+    return 'An account with this email already exists. Log in instead (your login email is filled in below).';
+  if (/identifier_not_found/i.test(code))
+    return 'No account uses this email yet. Sign up first, then log in. (Existing students: your progress is linked automatically after email verification.)';
+  if (/password.*(disabled|not allowed|unsupported|not enabled)|strategy.*not.*(allowed|enabled)/i.test(code + ' ' + msg))
+    return 'Password login is not enabled. Use an email code instead (link under the Login button).';
+  if (/no.*password|password.*(missing|unset)/i.test(code + ' ' + msg))
+    return 'This account has no password (migrated account). Use an email code instead (link under the Login button).';
+  if (/email_code.*not|first factor.*not|strategy.*not/i.test(code + ' ' + msg))
+    return 'Email-code login is not enabled for this account. Ask the administrator to enable it, or log in with your password.';
+  if (/expired/i.test(code + ' ' + msg)) return 'That code expired. Use “Resend code” and try the new code.';
+  if (/incorrect|invalid.*code|mismatch|failed.*verif/i.test(code + ' ' + msg))
+    return 'That code is incorrect. Check the latest email and try again.';
+  if (/already.*verif|verified/i.test(code + ' ' + msg)) return 'ALREADY_VERIFIED';
+  if (/password/i.test(code + ' ' + msg)) return msg;  // e.g. wrong password: pass Clerk's own wording through
+  return msg || fallback;
+}
+async function loadCourses() {
+  const sel = document.getElementById('signup-course');
+  try {
+    const res = await fetch('/api/learning-paths');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const paths = data.learning_paths || [];
+    if (!paths.length) {
+      sel.innerHTML = '<option value="">No courses available</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Select a course</option>' +
+      paths.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    if (pending.learning_path_id) sel.value = pending.learning_path_id;
+  } catch (err) {
+    sel.innerHTML = '<option value="">Could not load courses</option>';
+  }
+}
+function toggleMode(event) {
+  event.preventDefault();
+  mode = mode === 'login' ? 'signup' : 'login';
+  showForm(mode);
+}
+function onRoleChange() {  // teachers fill in a teacher application after verifying, not a course
+  const teacher = document.querySelector('input[name="signup-role"]:checked').value === 'teacher';
+  document.getElementById('signup-course-row').hidden = teacher;
+  document.getElementById('signup-course').required = !teacher;
+}
+function toggleCodeLogin(event) {
+  event.preventDefault();
+  codeLogin = !codeLogin;
+  document.getElementById('login-password-row').hidden = codeLogin;
+  document.getElementById('login-password').disabled = codeLogin;
+  document.getElementById('login-btn').innerText = codeLogin ? 'Send Code' : 'Login';
+  document.getElementById('code-login-link').innerText = codeLogin ? 'Use password instead' : 'Use an email code instead';
+}
+function firstFactorEmailCode(signIn) {
+  return ((signIn && signIn.supportedFirstFactors) || []).find(f => f.strategy === 'email_code') || null;
+}
+function showForm(which) {
+  const isLogin = which === 'login';
+  document.getElementById('login-form').hidden = !isLogin;
+  document.getElementById('signup-form').hidden = isLogin || which === 'verify';
+  document.getElementById('verify-form').hidden = which !== 'verify';
+  document.getElementById('form-title').innerText = which === 'verify' ? 'Verify Email' : (isLogin ? 'Login' : 'Sign Up');
+  document.getElementById('toggle-text').innerText = isLogin ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('toggle-link').innerText = isLogin ? 'Sign up' : 'Log in';
+  document.getElementById('toggle-link').style.display = which === 'verify' ? 'none' : '';
+  document.getElementById('toggle-text').style.display = which === 'verify' ? 'none' : '';
+  document.getElementById('error-msg').hidden = true;
+  document.getElementById('success-msg').hidden = true;
+  if (which === 'signup') loadCourses();
+}
+function showError(msg) {
+  document.getElementById('success-msg').hidden = true;
+  const e = document.getElementById('error-msg');
+  e.innerText = msg;
+  e.hidden = false;
+}
+function showSuccess(msg) {
+  document.getElementById('error-msg').hidden = true;
+  const s = document.getElementById('success-msg');
+  s.innerText = msg;
+  s.hidden = false;
+}
+function showVerifyForm(email, msg) {
+  mode = 'verify';
+  showForm('verify');
+  document.getElementById('verify-code').value = '';
+  document.getElementById('verify-text').innerText = `Enter the verification code sent to ${email}.`;
+  if (msg) showSuccess(msg);
+}
+function goToLoginAfterSignup(email) {
+  // Signup is deliberately NOT an auto-login: the user verifies, then logs in.
+  pending = { ...pending, mode: 'verified', email };  // keep name, course and Student/Teacher choice for the first login
+  localStorage.setItem('pendingProfile', JSON.stringify(pending));
+  document.getElementById('login-email').value = email || '';
+  showForm('login');
+  showSuccess('Email verified! Please log in with your email and password.');
+}
+async function afterAuth() {
+  if (!clerk.session) throw new Error('No active session. Please log in again.');
+  const token = await clerk.session.getToken();  // Clerk session token; verified by the backend on every request
+  if (!token) throw new Error('Could not get a session token. Please log in again.');
+  localStorage.setItem('token', token);
+  let res;
+  try {
+    res = await fetch('/api/auth/sync', {  // links the existing student profile (name/path kept from signup)
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ full_name: pending.full_name || undefined, learning_path_id: pending.learning_path_id || undefined })
+    });
+  } catch (err) { diag('sync', err); throw new Error(networkMessage(err, 'Could not reach the server.')); }
+  const data = await res.json();
+  if (!res.ok) { diag('sync', { status: res.status }); throw new Error(data.detail || 'Could not load your profile.'); }
+  if (!data.student) throw new Error('Your account has no student profile yet. Contact the administrator.');
+  localStorage.setItem('student', JSON.stringify(data.student));
+  localStorage.setItem('role', data.role || 'student');
+  const applying = data.application || pending.account_type === 'teacher';  // chose Teacher at signup, or already applied
+  localStorage.removeItem('pendingProfile');
+  pending = {};
+  window.location.href = data.role === 'admin' ? 'admin.html' : data.role === 'teacher' ? 'teacher.html'
+    : applying ? 'teacher-apply.html' : 'dashboard.html';
+}
+async function handleLogin(event) {
+  event.preventDefault();
+  if (!clerkReady || !clerk) { showError('Authentication is still loading. Wait a moment and try again.'); return; }
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById('login-btn');
+  document.getElementById('error-msg').hidden = true;
+  btn.disabled = true;
+  try {
+    const email = document.getElementById('login-email').value.trim();
+    if (clerk.client.sessions.length) await clerk.signOut();  // single-session mode rejects sign-in while a leftover session exists
+    if (codeLogin) {  // passwordless: Clerk emails a one-time code, proving ownership of the address
+      const signIn = await clerk.client.signIn.create({ identifier: email });
+      const factor = firstFactorEmailCode(signIn);
+      if (!factor) { showError(clerkError({ message: 'email_code first factor not offered' }, 'Email-code login is not available.')); }
+      else {
+        await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: factor.emailAddressId });
+        pending = { mode: 'login-code', email };
+        showVerifyForm(email, 'A verification code was sent to your email.');
+      }
+    } else {
+      const signIn = await clerk.client.signIn.create({ identifier: email, password: document.getElementById('login-password').value });
+      const second = signIn.status === 'needs_second_factor' && (signIn.supportedSecondFactors || []).find(f => f.strategy === 'email_code');
+      if (signIn.status === 'complete') {
+        if (!signIn.createdSessionId) throw new Error('Login completed without a session. Please try again.');
+        await clerk.setActive({ session: signIn.createdSessionId });
+        await afterAuth();
+      } else if (second) {
+        await signIn.prepareSecondFactor({ strategy: 'email_code', emailAddressId: second.emailAddressId });
+        pending = { mode: 'login-second-factor', email };
+        showVerifyForm(email, 'A verification code was sent to your email.');
+      } else {
+        showError('Additional verification is required (' + (signIn.status || 'unknown status') + '). Use an email code instead or contact the administrator.');
+      }
+    }
+  } catch (err) {
+    diag('login', err);
+    showError(clerkError(err, 'Login failed.'));
+  }
+  btn.disabled = false;
+  busy = false;
+}
+async function handleSignup(event) {
+  event.preventDefault();
+  if (!clerkReady || !clerk) { showError('Authentication is still loading. Wait a moment and try again.'); return; }
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById('signup-btn');
+  document.getElementById('error-msg').hidden = true;
+  document.getElementById('success-msg').hidden = true;
+  btn.disabled = true;
+  try {
+    const email = document.getElementById('signup-email').value.trim();
+    pending = {
+      mode: 'signup', email,
+      full_name: document.getElementById('signup-name').value.trim(),
+      account_type: document.querySelector('input[name="signup-role"]:checked').value
+    };
+    pending.learning_path_id = pending.account_type === 'teacher' ? null : parseInt(document.getElementById('signup-course').value, 10) || null;
+    localStorage.setItem('pendingProfile', JSON.stringify(pending));  // name/path only; password is never stored
+    await clerk.client.signUp.create({
+      emailAddress: email,
+      password: document.getElementById('signup-password').value
+    });
+    await clerk.client.signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+    showVerifyForm(email, 'Account created! Enter the verification code sent to your email.');
+  } catch (err) {
+    diag('signup', err);
+    const msg = clerkError(err, 'Sign up failed.');
+    showError(msg);
+    if (/already exists/i.test(msg)) {
+      document.getElementById('login-email').value = document.getElementById('signup-email').value.trim();
+    }
+  }
+  btn.disabled = false;
+  busy = false;
+}
+function signupIsComplete() {
+  try { return clerk && clerk.client && clerk.client.signUp && clerk.client.signUp.status === 'complete'; }
+  catch (err) { return false; }
+}
+async function handleVerify(event) {
+  event.preventDefault();
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById('verify-btn');
+  document.getElementById('error-msg').hidden = true;
+  btn.disabled = true;
+  try {
+    const code = document.getElementById('verify-code').value.trim();
+    if (!code) { showError('Enter the verification code first.'); }
+    else if (pending.mode === 'login-code' || pending.mode === 'login-second-factor') {
+      const signIn = clerk.client.signIn;
+      if (!signIn) throw new Error('Login session expired. Start again from the login form.');
+      const attempt = pending.mode === 'login-code'
+        ? await signIn.attemptFirstFactor({ strategy: 'email_code', code })
+        : await signIn.attemptSecondFactor({ strategy: 'email_code', code });
+      if (attempt.status !== 'complete' || !attempt.createdSessionId)
+        throw new Error('Verification incomplete (' + (attempt.status || 'unknown status') + '). Request a new code and try again.');
+      await clerk.setActive({ session: attempt.createdSessionId });
+      await afterAuth();
+    } else {
+      // Signup verification: verify exactly once, then trust Clerk's signup status, not the OTP echo.
+      if (!clerk.client.signUp) throw new Error('Signup session expired. Please sign up again.');
+      let status = null;
+      try {
+        const attempt = await clerk.client.signUp.attemptEmailAddressVerification({ code });
+        status = attempt && attempt.status;
+      } catch (err) {
+        // A reused/duplicate code can throw even though the address is now verified:
+        // re-check the real signup status instead of stranding the user.
+        if (signupIsComplete()) status = 'complete';
+        else {
+          const msg = clerkError(err, 'Verification failed.');
+          if (msg === 'ALREADY_VERIFIED' || signupIsComplete()) status = 'complete';
+          else throw new Error(msg);
+        }
+      }
+      if (status === 'complete' || signupIsComplete()) {
+        const email = pending.email || '';
+        goToLoginAfterSignup(email);  // verified -> login page, no silent auto-login
+      } else {
+        const missing = ((clerk.client.signUp || {}).missingFields || []).join(', ');
+        throw new Error('Signup is not complete yet' + (missing ? ' (still needed: ' + missing + ')' : '') + '. Check the code or resend it.');
+      }
+    }
+  } catch (err) { diag('verify', err); showError(err.message || clerkError(err, 'Verification failed.')); }
+  btn.disabled = false;
+  busy = false;
+}
+async function handleResend(event) {
+  event.preventDefault();
+  if (busy) return;
+  busy = true;
+  document.getElementById('error-msg').hidden = true;
+  try {
+    if (pending.mode === 'login-code' || pending.mode === 'login-second-factor') {
+      const signIn = clerk.client.signIn, first = pending.mode === 'login-code';
+      if (!signIn) throw new Error('Login session expired. Start again from the login form.');
+      const factor = first ? firstFactorEmailCode(signIn) : (signIn.supportedSecondFactors || []).find(f => f.strategy === 'email_code');
+      if (!factor) throw new Error('Email-code verification is not available for this account.');
+      const opts = { strategy: 'email_code', emailAddressId: factor.emailAddressId };
+      await (first ? signIn.prepareFirstFactor(opts) : signIn.prepareSecondFactor(opts));
+    } else {
+      if (!clerk.client.signUp) throw new Error('Signup session expired. Please sign up again.');
+      await clerk.client.signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+    }
+    showSuccess('A new verification code was sent to your email.');
+  } catch (err) { diag('resend', err); showError(err.message || clerkError(err, 'Could not resend code.')); }
+  busy = false;
+}
+boot();
+</script>
+</body>
+</html>

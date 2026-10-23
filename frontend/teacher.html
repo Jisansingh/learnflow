@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Corner - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Dashboard</a>
+                    <a href="courses.html" class="text-gray-500 hover:text-black">Courses</a>
+                    <a href="doubts.html" class="text-gray-500 hover:text-black">Doubts</a>
+                    <a href="profile.html" class="text-gray-500 hover:text-black">Profile</a>
+                    <a href="teacher.html" class="text-black">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                    <a href="#" onclick="handleLogout()" class="text-gray-500 hover:text-black">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full mx-auto px-4 sm:px-8 py-8">
+        <h1 class="text-3xl font-bold text-black mb-1">Teacher Corner</h1>
+        <p class="text-sm text-gray-500 mb-6">Community discussions from students. Open one to read it and reply.</p>
+        <p id="error-msg" class="hidden border-2 border-black bg-gray-100 p-3 font-bold text-sm mb-4"></p>
+
+        <section id="notifications" class="hidden border border-gray-200 rounded-lg p-6 mb-6"></section>
+
+        <section id="queue" class="hidden">
+            <div class="flex gap-6 border-b border-gray-200 mb-4 text-sm font-medium" role="tablist">
+                <button data-tab="open" onclick="setTab('open')" class="tab pb-2">Open</button>
+                <button data-tab="answered" onclick="setTab('answered')" class="tab pb-2">Answered</button>
+                <button data-tab="resolved" onclick="setTab('resolved')" class="tab pb-2">Resolved</button>
+            </div>
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-gray-200">
+                        <tr class="text-left">
+                            <th class="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Question</th>
+                            <th class="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                            <th class="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Learning path</th>
+                            <th class="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Asked</th>
+                            <th class="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-table">
+                        <tr><td colspan="5" class="py-3 px-4">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let doubts = [], tab = 'open';
+        const short = s => s.length > 90 ? s.slice(0, 90) + '…' : s;
+
+        function setTab(t) { tab = t; render(); }
+
+        function render() {
+            document.querySelectorAll('.tab').forEach(b => {
+                const on = b.dataset.tab === tab;
+                b.className = 'tab pb-2 ' + (on ? 'text-black border-b-2 border-black' : 'text-gray-500 hover:text-black');
+                b.setAttribute('aria-selected', on);
+            });
+            const rows = doubts.filter(d => d.status === tab);
+            document.getElementById('queue-table').innerHTML = rows.map(d => `
+                <tr class="border-t border-gray-100">
+                    <td class="py-3 px-4 font-bold text-black">${escapeHtml(short(d.question))}</td>
+                    <td class="py-3 px-4 text-gray-600">${escapeHtml(d.author)}</td>
+                    <td class="py-3 px-4 text-gray-600">${escapeHtml(d.learning_path)}</td>
+                    <td class="py-3 px-4 text-gray-600 whitespace-nowrap">${formatDate(d.created_at)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap"><a href="doubt.html?id=${d.id}" class="text-black underline">${tab === 'open' ? 'Answer' : 'Open'}</a></td>
+                </tr>`).join('') || `<tr><td colspan="5" class="py-3 px-4 text-gray-500">No ${tab} questions.</td></tr>`;
+        }
+
+        async function init() {
+            if (!requireAuth()) return;
+            try {
+                doubts = (await apiRequest('GET', '/api/teacher/doubts')).doubts || [];
+                if (localStorage.getItem('role') !== 'admin') localStorage.setItem('role', 'teacher');  // picks up a fresh approval
+                document.getElementById('queue').classList.remove('hidden');
+                render();
+                showNotifications('notifications');
+            } catch (err) {
+                if (err.status === 403 && localStorage.getItem('role') === 'teacher') { localStorage.setItem('role', 'student'); applyRoleLinks(); }
+                const el = document.getElementById('error-msg');
+                el.innerHTML = err.status === 403
+                    ? 'Teacher Corner is only for approved teachers. <a href="teacher-apply.html" class="underline">See your application status</a>.'
+                    : escapeHtml(err.message);
+                el.classList.remove('hidden');
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Secrets and local config
+.env
+.env.*
+
+# Database setup script (kept locally, not shared)
+backend/doubts.sql
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor / tool folders
+.opencode/
+.vscode/
+.idea/
+.DS_Store

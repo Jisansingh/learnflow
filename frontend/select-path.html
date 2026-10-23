@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Your Path - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+    <main class="w-full mx-auto px-3 sm:px-5 py-8">
+        <h1 class="text-3xl font-bold text-black mb-2 text-center">Which CSE path are you interested in?</h1>
+        <p class="text-gray-500 text-center mb-8">Pick one to get started. You'll continue to your dashboard right after.</p>
+        <p id="error-msg" class="text-black text-sm hidden mb-4 text-center"></p>
+        <div id="paths-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p class="text-gray-500">Loading paths...</p>
+        </div>
+    </main>
+
+    <script>
+        async function init() {
+            const container = document.getElementById('paths-list');
+            try {
+                const [me, data] = await Promise.all([apiRequest('GET', '/api/auth/me'), apiRequest('GET', '/api/learning-paths')]);
+                if (me.student && me.student.learning_path_id) {
+                    window.location.href = 'dashboard.html';
+                    return;
+                }
+                if (!data.learning_paths || data.learning_paths.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No learning paths available.</p>';
+                    return;
+                }
+                container.innerHTML = data.learning_paths.map(p => `
+                    <button onclick="selectPath(${p.id})" class="text-left bg-white p-6 rounded-lg border border-gray-200 hover:border-black transition">
+                        <h2 class="text-xl font-bold text-black">${escapeHtml(p.name)}</h2>
+                        <p class="text-gray-600 mt-1">${escapeHtml(p.description || '')}</p>
+                    </button>
+                `).join('');
+            } catch (err) { container.innerHTML = `<p class="text-gray-500">${escapeHtml(err.message)}</p>`; }
+        }
+
+        async function selectPath(id) {
+            const errEl = document.getElementById('error-msg');
+            errEl.classList.add('hidden');
+            try {
+                const data = await apiRequest('POST', '/api/select-path', { learning_path_id: id });
+                if (data.student) localStorage.setItem('student', JSON.stringify(data.student));
+                window.location.href = 'dashboard.html';
+            } catch (err) {
+                errEl.innerText = err.message;
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        if (requireAuth()) init();
+    </script>
+</body>
+</html>

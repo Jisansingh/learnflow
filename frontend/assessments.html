@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessments - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+    
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Dashboard</a>
+                    <a href="courses.html" class="text-gray-500 hover:text-black">Courses</a>
+                    <a href="profile.html" class="text-gray-500 hover:text-black">Profile</a>
+                    <a id="teacher-link" href="teacher.html" class="text-gray-500 hover:text-black hidden">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="w-full mx-auto px-4 sm:px-8 py-8">
+        <!-- Quiz Interface (opened from a course/topic) -->
+        <div id="active-quiz-view">
+            <div class="mb-4">
+                <a href="courses.html" class="text-sm font-medium text-black hover:underline flex items-center">
+                    ← Back to Courses
+                </a>
+            </div>
+            
+            <div class="bg-white p-8 rounded-lg border border-gray-200">
+                <h2 id="exam-title" class="text-2xl font-bold text-black mb-2">Loading Assessment...</h2>
+                <p id="exam-desc" class="text-gray-500 mb-6">Test your knowledge with this quiz.</p>
+                
+                <form id="assessment-form" onsubmit="submitAssessment(event)">
+                    <div id="questions-container" class="space-y-6">
+                        <p class="text-gray-500">Loading questions...</p>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="mt-8 bg-black text-white font-medium px-6 py-2 rounded hover:bg-gray-800 transition">Submit Answers</button>
+                </form>
+
+                <div id="result" class="hidden mt-6 bg-gray-50 border border-gray-300 p-4 rounded">
+                    <p id="result-score" class="text-sm font-bold text-black">Result / Score: 0/0 (0%)</p>
+                    <p id="result-msg" class="text-sm text-black mt-1">Great job!</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let currentExamId = null;
+
+        function initAssessments() {
+            if (!requireAuth()) return;
+            const examId = parseInt(new URLSearchParams(location.search).get('id'), 10);
+            if (examId) loadQuiz(examId); else location.href = 'courses.html';
+        }
+
+        async function loadQuiz(examId) {
+            currentExamId = examId;
+            document.getElementById('result').classList.add('hidden');
+
+            try {
+                const exam = await apiRequest('GET', `/api/assessments/${examId}`);
+                document.getElementById('exam-title').innerText = exam.title;
+                document.getElementById('exam-desc').innerText = `Passing score: ${exam.passing_score}%`;
+                document.getElementById('submit-btn').classList.remove('hidden');
+
+                const container = document.getElementById('questions-container');
+                if (!exam.questions || exam.questions.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No questions available for this assessment.</p>';
+                    return;
+                }
+
+                container.innerHTML = exam.questions.map((q, idx) => `
+                    <div>
+                        <p class="font-medium text-black mb-3">${idx + 1}. ${escapeHtml(q.question_text)}</p>
+                        <div class="space-y-2">
+                            ${(q.options || []).map(opt => `
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" name="q_${q.id}" value="${opt.id}" class="h-4 w-4 accent-black" required>
+                                    <span class="text-gray-700">${escapeHtml(opt.option_text)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('exam-title').innerText = err.status === 404 ? 'Assessment not found' : err.message;
+                document.getElementById('exam-desc').innerText = 'Please open a quiz from its course topic.';
+                document.getElementById('questions-container').innerHTML = '';
+                document.getElementById('submit-btn').classList.add('hidden');
+            }
+        }
+
+        async function submitAssessment(event) {
+            event.preventDefault();
+            const form = document.getElementById('assessment-form');
+            const answers = {};
+            for (const [key, value] of new FormData(form)) {
+                if (key.startsWith('q_')) answers[key.slice(2)] = parseInt(value, 10);
+            }
+
+            try {
+                const data = await apiRequest('POST', `/api/assessments/${currentExamId}/submit`, { answers });
+
+                const resultDiv = document.getElementById('result');
+                const scoreText = document.getElementById('result-score');
+                const msgText = document.getElementById('result-msg');
+
+                resultDiv.className = `mt-6 ${data.passed ? 'bg-gray-50' : 'bg-white'} border border-gray-300 p-4 rounded`;
+                scoreText.className = 'text-sm font-bold text-black';
+                msgText.className = 'text-sm text-black mt-1';
+                msgText.innerText = data.passed ? 'Great job! You passed the assessment.' : 'You did not reach the passing score. Keep practicing!';
+
+                scoreText.innerText = `Result / Score: ${data.score}/${data.total} (${data.percentage}%)`;
+                resultDiv.classList.remove('hidden');
+            } catch (err) {
+                document.getElementById('result-score').innerText = err.message;
+                document.getElementById('result-msg').innerText = '';
+                document.getElementById('result').classList.remove('hidden');
+            }
+        }
+
+        initAssessments();
+    </script>
+</body>
+</html>

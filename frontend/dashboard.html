@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+    <style>
+        .dot { width: 12px; height: 12px; border-radius: 9999px; flex-shrink: 0; margin-top: 4px; }
+        .dot-completed { background: #000; border: 2px solid #000; }
+        .dot-current { background: #fff; border: 3px solid #000; }
+        .dot-upcoming { background: #fff; border: 2px solid #d1d5db; }
+    </style>
+</head>
+<body class="bg-white min-h-screen text-black">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-black">Dashboard</a>
+                    <a href="courses.html" class="text-gray-500 hover:text-black">Courses</a>
+                    <a href="doubts.html" class="text-gray-500 hover:text-black">Doubts</a>
+                    <a href="profile.html" class="text-gray-500 hover:text-black">Profile</a>
+                    <a id="teacher-link" href="teacher.html" class="text-gray-500 hover:text-black hidden">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="w-full mx-auto px-4 sm:px-8 py-8">
+        <h1 id="welcome-heading" class="text-3xl font-bold text-black mb-1">Welcome back, User!</h1>
+        <p id="path-subtitle" class="text-sm text-gray-500 mb-6">&nbsp;</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <!-- Overall Progress -->
+            <div class="bg-white p-6 rounded-lg border border-gray-200">
+                <h3 id="progress-title" class="text-lg font-semibold text-gray-700 mb-2">Overall Progress</h3>
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                    <div id="progress-bar" class="bg-black h-3 rounded-full" style="width: 0%;"></div>
+                </div>
+                <p id="progress-text" class="text-sm text-gray-500">0% Completed across all courses</p>
+                <p id="progress-steps" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+
+            <!-- Current Ongoing Course -->
+            <div class="bg-white p-6 rounded-lg border border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700 mb-1">Current Ongoing Course</h3>
+                <h4 id="ongoing-course-title" class="text-xl font-bold text-black mb-2">Loading...</h4>
+                <p id="ongoing-topic-title" class="text-gray-600 mb-4 text-sm">Loading module...</p>
+                <a id="continue-link" href="courses.html" class="inline-block bg-black text-white font-medium py-2 px-4 rounded hover:bg-gray-800 transition">Continue Learning</a>
+            </div>
+        </div>
+
+        <!-- Learning path roadmap -->
+        <section>
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                <h2 class="text-xl font-bold text-black">Your Roadmap</h2>
+                <div class="flex flex-wrap gap-4 text-xs text-gray-500">
+                    <span class="flex items-center gap-1"><span class="dot dot-completed" style="margin-top:0"></span>Completed</span>
+                    <span class="flex items-center gap-1"><span class="dot dot-current" style="margin-top:0"></span>Current</span>
+                    <span class="flex items-center gap-1"><span class="dot dot-upcoming" style="margin-top:0"></span>Upcoming</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-500 mb-6">The recommended order for your path, from first skill to last.</p>
+            <ol id="roadmap" class="border-l-2 border-gray-200 ml-1.5 space-y-8">
+                <li class="pl-6 text-sm text-gray-500">Loading roadmap...</li>
+            </ol>
+        </section>
+    </main>
+
+    <script>
+        function renderRoadmap(course) {
+            const el = document.getElementById('roadmap');
+            const skills = (course.skills || []).filter(s => (s.topics || []).length);
+            if (!skills.length) { el.innerHTML = '<li class="pl-6 text-sm text-gray-500">This path has no lessons yet.</li>'; return; }
+            // the first unfinished topic in path order is where the student is now
+            const current = skills.flatMap(s => s.topics).find(t => t.status !== 'completed');
+            el.innerHTML = skills.map((s, i) => {
+                const done = s.topics.filter(t => t.status === 'completed').length;
+                const topics = s.topics.map(t => {
+                    const state = t.status === 'completed' ? 'completed' : (current && t.id === current.id ? 'current' : 'upcoming');
+                    const label = { completed: 'Completed', current: 'Current', upcoming: 'Upcoming' }[state];
+                    return `
+                        <li>
+                            <a href="course.html?id=${course.id}&topic_id=${t.id}" class="flex items-start gap-3 py-1.5 hover:underline">
+                                <span class="dot dot-${state}" aria-hidden="true"></span>
+                                <span class="flex-1 ${state === 'upcoming' ? 'text-gray-500' : 'text-black'} ${state === 'current' ? 'font-semibold' : ''}">${escapeHtml(t.name)}</span>
+                                <span class="text-xs text-gray-500 whitespace-nowrap">${escapeHtml(t.difficulty || '')}<span class="sr-only"> · ${label}</span>${state === 'current' ? ' · Current' : ''}</span>
+                            </a>
+                        </li>`;
+                }).join('');
+                return `
+                    <li class="relative pl-6">
+                        <span class="absolute -left-[9px] top-1 dot ${done === s.topics.length ? 'dot-completed' : (current && s.topics.includes(current) ? 'dot-current' : 'dot-upcoming')}" style="margin-top:0;width:16px;height:16px" aria-hidden="true"></span>
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Step ${i + 1}</p>
+                        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                            <h3 class="text-lg font-bold text-black">${escapeHtml(s.name)}</h3>
+                            <span class="text-sm text-gray-500">${done}/${s.topics.length} done</span>
+                        </div>
+                        <ul class="border border-gray-200 rounded-lg px-4 py-2">${topics}</ul>
+                    </li>`;
+            }).join('');
+            const doneSteps = skills.filter(s => s.topics.every(t => t.status === 'completed')).length;
+            document.getElementById('progress-steps').innerText = `${doneSteps} of ${skills.length} steps finished`;
+        }
+
+        async function loadDashboard() {
+            if (!requireAuth()) return;
+            try {
+                const data = await apiRequest('GET', '/api/dashboard');
+
+                if (data.student && !data.student.learning_path_id) {
+                    window.location.href = 'select-path.html';
+                    return;
+                }
+                if (data.student) {
+                    document.getElementById('welcome-heading').innerText = `Welcome back, ${data.student.full_name || 'User'}!`;
+                }
+
+                if (data.overall_progress) {
+                    const pct = data.overall_progress.percentage || 0;
+                    if (data.overall_progress.name) {
+                        document.getElementById('progress-title').innerText = `${data.overall_progress.name} Progress`;
+                        document.getElementById('path-subtitle').innerText = `Learning path: ${data.overall_progress.name}`;
+                    }
+                    document.getElementById('progress-bar').style.width = `${pct}%`;
+                    document.getElementById('progress-text').innerText = `${pct}% Completed (${data.overall_progress.completed_topics || 0}/${data.overall_progress.total_topics || 0} topics)`;
+                }
+
+                if (data.current_course) {
+                    document.getElementById('ongoing-course-title').innerText = data.current_course.name;
+                    document.getElementById('ongoing-topic-title').innerText = `Topic: ${data.current_course.topic_name}`;
+                    document.getElementById('continue-link').href = `course.html?id=${data.current_course.id}&topic_id=${data.current_course.topic_id || ''}`;
+                } else {
+                    document.getElementById('ongoing-course-title').innerText = 'All courses completed!';
+                    document.getElementById('ongoing-topic-title').innerText = 'Great job completing your learning paths.';
+                    document.getElementById('continue-link').href = 'courses.html';
+                }
+
+                if (!data.roadmap) throw new Error('Could not load roadmap');
+                renderRoadmap(data.roadmap);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('roadmap').innerHTML = '<li class="pl-6 text-sm text-gray-500">Could not load your roadmap. Refresh to try again.</li>';
+            }
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>

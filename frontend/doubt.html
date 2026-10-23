@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Dashboard</a>
+                    <a href="doubts.html" class="text-gray-500 hover:text-black">Doubts</a>
+                    <a id="teacher-link" href="teacher.html" class="text-gray-500 hover:text-black hidden">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full px-4 sm:px-8 py-8 max-w-3xl">
+        <a href="doubts.html" class="inline-block text-sm text-black underline mb-4">&larr; Back to Doubts</a>
+        <p id="error-msg" class="hidden border-2 border-black bg-gray-100 p-3 font-bold text-sm mb-4"></p>
+
+        <section id="doubt" class="hidden">
+            <p id="doubt-meta" class="text-sm text-gray-500 mb-2"></p>
+            <h1 id="doubt-question" class="text-2xl font-bold text-black mb-2 whitespace-pre-wrap break-words"></h1>
+            <p id="doubt-sub" class="text-sm text-gray-500 mb-6"></p>
+
+            <h2 id="messages-heading" class="text-lg font-bold text-black mb-3">Replies</h2>
+            <ul id="messages" class="border border-gray-200 rounded-lg mb-6"></ul>
+
+            <form id="reply-form" onsubmit="sendReply(event)" class="text-sm mb-4">
+                <label id="reply-label" for="reply-body" class="block font-medium mb-1">Your reply</label>
+                <textarea id="reply-body" rows="4" maxlength="4000" required class="border border-gray-300 px-3 py-2 w-full mb-2"></textarea>
+                <button id="reply-btn" class="bg-black text-white font-medium py-2 px-5 disabled:bg-gray-500">Send</button>
+                <p id="reply-msg" class="hidden mt-2 border-2 border-black bg-gray-100 p-2 font-bold"></p>
+            </form>
+            <p id="closed-note" class="hidden text-sm text-gray-500 mb-4">This question is resolved and closed for replies.</p>
+            <button id="resolve-btn" onclick="markResolved()" class="hidden border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">Mark as resolved</button>
+        </section>
+    </main>
+
+    <script>
+        const STATUS = { open: 'Open', answered: 'Answered', resolved: 'Resolved' };
+        const id = parseInt(new URLSearchParams(location.search).get('id'), 10);
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg; el.classList.remove('hidden');
+        }
+
+        async function load() {
+            try {
+                const { doubt: d, messages } = await apiRequest('GET', `/api/doubts/${id}`);
+                document.getElementById('doubt-meta').innerText = STATUS[d.status];
+                document.getElementById('doubt-question').innerText = d.question;
+                document.getElementById('doubt-sub').innerText =
+                    `Asked by ${d.mine ? 'you' : d.author} · ${d.learning_path} · ${formatDate(d.created_at)}`;
+                document.getElementById('messages').innerHTML = messages.map(m => `
+                    <li class="px-4 py-3 border-t border-gray-100 first:border-t-0">
+                        <p class="text-xs text-gray-500 mb-1"><strong class="text-black">${m.mine ? 'You' : escapeHtml(m.author)}</strong> <span class="border border-black px-1 text-black">${m.author_role === 'teacher' ? 'Teacher' : 'Student'}</span> · ${formatDate(m.created_at)}</p>
+                        <p class="text-sm whitespace-pre-wrap break-words">${escapeHtml(m.body)}</p>
+                    </li>`).join('') || '<li class="px-4 py-3 text-sm text-gray-500">No replies yet.</li>';
+                const closed = d.status === 'resolved';
+                document.getElementById('reply-form').classList.toggle('hidden', !d.can_reply);
+                document.getElementById('closed-note').classList.toggle('hidden', !closed);
+                document.getElementById('resolve-btn').classList.toggle('hidden', !d.can_resolve);
+                document.getElementById('doubt').classList.remove('hidden');
+            } catch (err) { showError(err.message); }
+        }
+
+        async function sendReply(e) {
+            e.preventDefault();
+            const btn = document.getElementById('reply-btn'), msg = document.getElementById('reply-msg');
+            btn.disabled = true; btn.innerText = 'Sending...'; msg.classList.add('hidden');
+            try {
+                await apiRequest('POST', `/api/doubts/${id}/messages`, { body: document.getElementById('reply-body').value });
+                document.getElementById('reply-body').value = '';
+                await load();
+            } catch (err) { msg.innerText = err.message; msg.classList.remove('hidden'); }
+            btn.disabled = false; btn.innerText = 'Send';
+        }
+
+        async function markResolved() {
+            try { await apiRequest('POST', `/api/doubts/${id}/resolve`); await load(); }
+            catch (err) { showError(err.message); }
+        }
+
+        if (requireAuth()) {
+            if (id) load(); else showError('Question not found');
+        }
+    </script>
+</body>
+</html>

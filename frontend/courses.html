@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courses - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+    
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Dashboard</a>
+                    <a href="courses.html" class="text-black">Courses</a>
+                    <a href="doubts.html" class="text-gray-500 hover:text-black">Doubts</a>
+                    <a href="profile.html" class="text-gray-500 hover:text-black">Profile</a>
+                    <a id="teacher-link" href="teacher.html" class="text-gray-500 hover:text-black hidden">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content (same full-width container as dashboard.html) -->
+    <main class="w-full mx-auto px-4 sm:px-8 py-8">
+        <h1 class="text-3xl font-bold text-black mb-6">Your Courses</h1>
+        
+        <div id="courses-list" class="space-y-4">
+            <p class="text-gray-500">Loading courses...</p>
+        </div>
+    </main>
+
+    <script>
+        async function loadCourses() {
+            if (!requireAuth()) return;
+            const container = document.getElementById('courses-list');
+            try {
+                const data = await apiRequest('GET', '/api/courses');
+                if (!data.courses || data.courses.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No courses available.</p>';
+                    return;
+                }
+
+                container.innerHTML = data.courses.map(course => `
+                    <div class="py-5 max-w-2xl">
+                        <h2 class="text-xl font-bold text-black">${escapeHtml(course.name)}</h2>
+                        <p class="text-gray-600 mt-1 max-w-lg">${escapeHtml(course.description || '')}</p>
+                        <a href="course.html?id=${course.id}" class="inline-block mt-3 bg-black text-white text-sm font-medium py-2 px-5">Open Course</a>
+                    </div>
+                `).join('');
+            } catch (err) { container.innerHTML = `<p class="text-gray-500">${escapeHtml(err.message)}</p>`; }
+        }
+        loadCourses();
+    </script>
+</body>
+</html>

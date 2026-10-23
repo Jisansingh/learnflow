@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white text-black">
+
+    <nav class="border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
+            <div>
+                <span class="font-bold text-lg">LearningApp</span>
+                <span class="ml-2 text-xs border border-gray-300 px-1 py-0.5">ADMIN</span>
+            </div>
+            <div class="text-sm">
+                <a href="admin.html" class="mr-4 underline">Administration</a>
+                <a href="courses.html" class="mr-4 underline">View site</a>
+                <a href="doubts.html" class="mr-4 underline">Doubts</a>
+                <a href="teacher.html" class="mr-4 underline">Teacher Corner</a>
+                <a href="#" onclick="handleLogout()" class="underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full mx-auto px-4 sm:px-8 py-6">
+        <h1 class="text-2xl font-bold mb-1">Administration</h1>
+        <p class="text-sm mb-4">Manage courses, skills, topics, resources and exams.</p>
+        <p id="error-msg" class="text-sm hidden mb-4"></p>
+
+        <section id="teacher-applications" class="mb-6">
+            <h2 class="text-lg font-bold mb-2">Teacher Applications</h2>
+            <div id="notifications" class="hidden text-sm mb-3"></div>
+            <div id="applications-list" class="text-sm"><p>Loading...</p></div>
+        </section>
+
+        <section class="mb-6">
+            <h2 class="text-lg font-bold mb-2">Courses</h2>
+            <form onsubmit="saveCourse(event)" class="mb-3">
+                <input type="text" id="course-name" placeholder="Course name" required class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <input type="text" id="course-desc" placeholder="Description" class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <button class="border border-gray-300 px-3 py-1 text-sm mr-2">Add</button>
+                <button type="button" onclick="resetCourseForm()" class="border border-gray-300 px-3 py-1 text-sm">Clear</button>
+            </form>
+            <div id="courses-list" class="text-sm"><p>Loading...</p></div>
+        </section>
+
+        <section class="mb-6">
+            <h2 class="text-lg font-bold mb-2">Course structure</h2>
+            <p class="text-sm mb-3">Select a course, then a skill, then a topic.</p>
+            <div class="mb-4">
+                <select id="sel-course" onchange="onCourseChange()" class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2 bg-white"></select>
+                <select id="sel-skill" onchange="onSkillChange()" class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2 bg-white"></select>
+                <select id="sel-topic" onchange="renderAll()" class="border border-gray-300 px-2 py-1 text-sm mb-2 bg-white"></select>
+            </div>
+
+            <h3 class="font-bold mb-2">Skills</h3>
+            <form onsubmit="saveSkill(event)" class="mb-2">
+                <input type="text" id="skill-name" placeholder="Skill name" required class="border border-gray-300 px-2 py-1 text-sm mr-2">
+                <button class="border border-gray-300 px-3 py-1 text-sm">Add</button>
+            </form>
+            <div id="skills-list" class="text-sm mb-4"></div>
+
+            <h3 class="font-bold mb-2">Topics</h3>
+            <form onsubmit="saveTopic(event)" class="mb-2">
+                <input type="text" id="topic-name" placeholder="Topic name" required class="border border-gray-300 px-2 py-1 text-sm mr-2">
+                <button class="border border-gray-300 px-3 py-1 text-sm">Add</button>
+            </form>
+            <div id="topics-list" class="text-sm mb-4"></div>
+
+            <h3 class="font-bold mb-2">Resources</h3>
+            <form onsubmit="saveResource(event)" class="mb-2">
+                <input type="text" id="resource-title" placeholder="Title" required class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <input type="url" id="resource-url" placeholder="https://..." required class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <select id="resource-type" class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2 bg-white">
+                    <option value="doc">doc</option>
+                    <option value="video">video</option>
+                    <option value="other">other</option>
+                </select>
+                <button class="border border-gray-300 px-3 py-1 text-sm">Add</button>
+            </form>
+            <div id="resources-list" class="text-sm"></div>
+        </section>
+
+        <section class="mb-6">
+            <h2 class="text-lg font-bold mb-2">Exams and questions</h2>
+            <p class="text-sm mb-3">Exams belong to the topic selected above.</p>
+            <form onsubmit="saveExam(event)" class="mb-3">
+                <input type="text" id="exam-title" placeholder="Exam title" required class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <input type="number" id="exam-passing" placeholder="Passing %" value="60" min="0" max="100" class="border border-gray-300 px-2 py-1 text-sm mr-2 mb-2">
+                <button class="border border-gray-300 px-3 py-1 text-sm">Add</button>
+            </form>
+            <div id="exams-list" class="text-sm mb-4"></div>
+            <div id="questions-block" class="hidden pt-4">
+                <h3 id="questions-heading" class="font-bold mb-2">Questions</h3>
+                <form onsubmit="saveQuestion(event)" class="mb-2">
+                    <input type="text" id="question-text" placeholder="Question text + options (option A | option B | *correct)" required class="border border-gray-300 px-2 py-1 text-sm mr-2 w-full max-w-md">
+                    <button class="border border-gray-300 px-3 py-1 text-sm mt-2">Add</button>
+                </form>
+                <p class="text-sm mb-3">Question first, then options separated by |; mark the correct one with * (e.g. Which tag makes a link? | &lt;link&gt; | *&lt;a&gt;).</p>
+                <div id="questions-list" class="text-sm"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        let overview = null, selectedExamId = null, examQuestions = [];
+        let examCache = {};
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg; el.classList.remove('hidden');
+        }
+        async function api(method, path, body) {  // non-admins are sent back to their dashboard
+            try { return await apiRequest(method, path, body); }
+            catch (err) { if (err.status === 403) window.location.href = 'dashboard.html'; throw err; }
+        }
+
+        async function init() {
+            if (!requireAuth()) return;
+            try {
+                // both at once; a non-admin is redirected by the role check or the overview's 403
+                const [me, data] = await Promise.all([api('GET', '/api/auth/me'), api('GET', '/api/admin/overview')]);
+                localStorage.setItem('role', me.role || 'student');
+                if ((me.role || 'student') !== 'admin') { window.location.href = 'dashboard.html'; return; }
+                overview = data;
+                renderCourses(); renderSelectors(); renderAll(); renderExams();
+            } catch (e) { console.error(e); }
+        }
+
+        async function refresh() {
+            overview = await api('GET', '/api/admin/overview');
+            renderCourses(); renderSelectors(); renderAll(); renderExams();
+        }
+
+        function renderCourses() {
+            document.getElementById('courses-list').innerHTML = overview.courses.map(c => `
+                <div class="py-1"><strong>${escapeHtml(c.name)}</strong> ${escapeHtml(c.description || '')}</div>`).join('') || '<p>No courses yet.</p>';
+        }
+        async function saveCourse(e) {
+            e.preventDefault();
+            const body = { name: document.getElementById('course-name').value.trim(), description: document.getElementById('course-desc').value.trim() };
+            try {
+                await api('POST', '/api/admin/courses', body);
+                resetCourseForm(); await refresh();
+            } catch (err) { showError(err.message); }
+        }
+        function resetCourseForm() {
+            document.getElementById('course-name').value = '';
+            document.getElementById('course-desc').value = '';
+        }
+
+        function renderSelectors() {
+            const cSel = document.getElementById('sel-course'), sSel = document.getElementById('sel-skill'), tSel = document.getElementById('sel-topic');
+            const keepC = cSel.value, keepS = sSel.value, keepT = tSel.value;
+            cSel.innerHTML = overview.courses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('') || '<option value="">No courses</option>';
+            if (keepC && overview.courses.some(c => String(c.id) === keepC)) cSel.value = keepC;
+            const course = overview.courses.find(c => String(c.id) === cSel.value) || overview.courses[0];
+            sSel.innerHTML = (course?.skills || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('') || '<option value="">No skills</option>';
+            if (keepS && (course?.skills || []).some(s => String(s.id) === keepS)) sSel.value = keepS;
+            const skill = (course?.skills || []).find(s => String(s.id) === sSel.value) || (course?.skills || [])[0];
+            tSel.innerHTML = (skill?.topics || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('') || '<option value="">No topics</option>';
+            if (keepT && (skill?.topics || []).some(t => String(t.id) === keepT)) tSel.value = keepT;
+        }
+        function onCourseChange() { document.getElementById('sel-skill').value = ''; document.getElementById('sel-topic').value = ''; renderSelectors(); selectedExamId = null; renderAll(); renderExams(); }
+        function onSkillChange() { document.getElementById('sel-topic').value = ''; renderSelectors(); selectedExamId = null; renderAll(); renderExams(); }
+
+        function curIds() {
+            return {
+                courseId: parseInt(document.getElementById('sel-course').value) || null,
+                skillId: parseInt(document.getElementById('sel-skill').value) || null,
+                topicId: parseInt(document.getElementById('sel-topic').value) || null
+            };
+        }
+        async function renderAll() {
+            const { skillId, topicId } = curIds();
+            const course = overview.courses.find(c => String(c.id) === document.getElementById('sel-course').value);
+            const skills = course?.skills || [];
+            document.getElementById('skills-list').innerHTML = skills.map(s => rowHtml(escapeHtml(s.name))).join('') || '<p>None</p>';
+            const skill = skills.find(s => s.id === skillId) || skills[0];
+            let topics = (skill?.topics || []);
+            document.getElementById('topics-list').innerHTML = topics.map(t => rowHtml(escapeHtml(t.name))).join('') || '<p>None</p>';
+            let resHtml = '<p>Select a topic</p>';
+            if (topicId) {
+                try {
+                    const detail = await api('GET', `/api/courses/${overview.courses.find(c => c.skills?.some(s => s.id === skillId))?.id || course?.id}`);
+                    const allT = [];
+                    (detail.skills || []).forEach(s => (s.topics || []).forEach(t => allT.push(t)));
+                    const full = allT.find(t => t.id === topicId);
+                    resHtml = (full?.resources || []).map(r => rowHtml(`${escapeHtml(r.title)} (${escapeHtml(r.resource_type || 'doc')})`)).join('') || '<p>None</p>';
+                } catch (e) { resHtml = '<p>Could not load resources</p>'; }
+            }
+            document.getElementById('resources-list').innerHTML = resHtml;
+        }
+        function rowHtml(label) {
+            return `<div class="py-1"><span>${label}</span></div>`;
+        }
+
+        async function saveSkill(e) {
+            e.preventDefault();
+            const { courseId } = curIds();
+            if (!courseId) return showError('Create a course first.');
+            const name = document.getElementById('skill-name').value.trim();
+            try {
+                await api('POST', '/api/admin/skills', { learning_path_id: courseId, name });
+                document.getElementById('skill-name').value = '';
+                await refresh();
+            } catch (err) { showError(err.message); }
+        }
+        async function saveTopic(e) {
+            e.preventDefault();
+            const { skillId } = curIds();
+            if (!skillId) return showError('Create a skill first.');
+            const name = document.getElementById('topic-name').value.trim();
+            try {
+                await api('POST', '/api/admin/topics', { skill_id: skillId, name });
+                document.getElementById('topic-name').value = '';
+                await refresh();
+            } catch (err) { showError(err.message); }
+        }
+        async function saveResource(e) {
+            e.preventDefault();
+            const { topicId } = curIds();
+            if (!topicId) return showError('Select a topic first.');
+            const body = { title: document.getElementById('resource-title').value.trim(), url: document.getElementById('resource-url').value.trim(), resource_type: document.getElementById('resource-type').value };
+            try {
+                await api('POST', '/api/admin/resources', { topic_id: topicId, ...body });
+                document.getElementById('resource-title').value = ''; document.getElementById('resource-url').value = '';
+                await refresh();
+            } catch (err) { showError(err.message); }
+        }
+
+        function renderExams() {
+            const { topicId } = curIds();
+            let exams = [];
+            overview.courses.forEach(c => (c.skills || []).forEach(s => (s.topics || []).forEach(t => {
+                if (t.id === topicId) exams = t.exams || [];
+            })));
+            document.getElementById('exams-list').innerHTML = exams.map(x => {
+                examCache[x.id] = x;
+                return `
+                <div class="py-1">
+                    <button onclick="openExam(${x.id})" class="underline mr-2">Questions</button><strong>${escapeHtml(x.title)}</strong> ${x.question_count} questions
+                </div>`; }).join('') || '<p>No exams for this topic yet.</p>';
+            if (selectedExamId && !exams.some(x => x.id === selectedExamId)) { selectedExamId = null; }
+            document.getElementById('questions-block').classList.toggle('hidden', !selectedExamId);
+            if (selectedExamId) loadQuestions();
+        }
+        async function saveExam(e) {
+            e.preventDefault();
+            const { topicId } = curIds();
+            if (!topicId) return showError('Select a topic first.');
+            const body = { title: document.getElementById('exam-title').value.trim(), passing_score: parseFloat(document.getElementById('exam-passing').value) || 60 };
+            try {
+                await api('POST', '/api/admin/exams', { topic_id: topicId, ...body });
+                document.getElementById('exam-title').value = '';
+                await refresh();
+            } catch (err) { showError(err.message); }
+        }
+        async function openExam(id) {
+            selectedExamId = id;
+            document.getElementById('questions-heading').innerText = `Questions: ${(examCache[id] || {}).title || ''}`;
+            document.getElementById('questions-block').classList.remove('hidden');
+            await loadQuestions();
+        }
+        async function loadQuestions() {
+            try {
+                const data = await api('GET', `/api/admin/exams/${selectedExamId}/questions`);
+                examQuestions = data.questions || [];
+                document.getElementById('questions-list').innerHTML = examQuestions.map((q, qi) => `
+                    <div class="py-2">
+                        <div class="mb-1"><strong>${qi + 1}. ${escapeHtml(q.question_text)}</strong></div>
+                        ${(q.options || []).map(o => `
+                            <div class="flex items-center gap-2 py-0.5">
+                                <span>${o.is_correct ? '●' : '○'}</span>
+                                <span>${escapeHtml(o.option_text)}</span>
+                            </div>`).join('')}
+                    </div>`).join('') || '<p>No questions yet.</p>';
+            } catch (err) { showError(err.message); }
+        }
+        async function saveQuestion(e) {
+            e.preventDefault();
+            if (!selectedExamId) return showError('Open an exam first.');
+            const raw = document.getElementById('question-text').value.trim();
+            try {
+                const [qtext, ...parts] = raw.split('|').map(s => s.trim()).filter(Boolean);
+                if (parts.length < 2) return showError('Add at least two options after the question, e.g. Question? | A | *B');
+                const correctIdx = parts.findIndex(p => p.startsWith('*'));
+                if (correctIdx < 0) return showError('Mark the correct option with *.');
+                const opts = parts.map((t, i) => ({ option_text: t.replace(/^\*/, '').trim(), is_correct: i === correctIdx }));
+                await api('POST', '/api/admin/questions', { exam_id: selectedExamId, question_text: qtext, options: opts });
+                document.getElementById('question-text').value = '';
+                await refresh(); await loadQuestions();
+            } catch (err) { showError(err.message); }
+        }
+
+        async function loadApplications() {
+            const el = document.getElementById('applications-list');
+            try {
+                const list = (await api('GET', '/api/admin/teacher-applications')).applications || [];
+                el.innerHTML = list.map(a => `
+                    <div class="py-3 border-t border-gray-200">
+                        <div class="mb-1"><strong>${escapeHtml(a.full_name)}</strong> ${escapeHtml(a.email)} · applied ${formatDate(a.created_at)}</div>
+                        <div>${escapeHtml(a.qualification)}, ${escapeHtml(a.institution)} · ${a.experience_years} years teaching</div>
+                        <div>Subjects and topics: ${escapeHtml(a.subjects)}</div>
+                        ${a.skills ? `<div>Skills: ${escapeHtml(a.skills)}</div>` : ''}
+                        <div class="whitespace-pre-wrap">${escapeHtml(a.introduction)}</div>
+                        <div class="mt-2">${a.status === 'pending' ? `
+                            <button onclick="decide(${a.id}, 'accept', this)" class="border border-gray-300 px-3 py-1 text-sm mr-2">Accept</button>
+                            <button onclick="decide(${a.id}, 'reject', this)" class="border border-gray-300 px-3 py-1 text-sm">Reject</button>`
+                            : `<strong>${a.status === 'accepted' ? 'Accepted' : 'Rejected'}</strong> by ${escapeHtml(a.reviewed_by || '')} on ${formatDate(a.reviewed_at)}`}
+                        </div>
+                    </div>`).join('') || '<p>No applications yet.</p>';
+            } catch (err) { el.innerHTML = `<p>Could not load applications: ${escapeHtml(err.message)}</p>`; }
+        }
+        async function decide(id, decision, btn) {
+            btn.parentElement.querySelectorAll('button').forEach(b => b.disabled = true);
+            try { await api('POST', `/api/admin/teacher-applications/${id}/decision`, { decision }); }
+            catch (err) { showError(err.message); }
+            loadApplications();
+        }
+
+        init();
+        if (token) { loadApplications(); showNotifications('notifications'); }
+    </script>
+</body>
+</html>

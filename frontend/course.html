@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Learning - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+    
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Back to Dashboard</a>
+                    <a href="courses.html" class="text-gray-500 hover:text-black">All Courses</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Grid -->
+    <main class="w-full mx-auto px-4 sm:px-8 py-8 flex flex-col md:flex-row gap-6">
+        
+        <!-- Sidebar -->
+        <aside class="w-full md:w-1/4 bg-white rounded-lg border border-gray-200 p-4 h-fit">
+            <h3 class="font-bold text-lg text-black mb-4">Modules / Lessons</h3>
+            <ul id="topic-list" class="space-y-2 text-sm">
+                <li class="text-gray-500">Loading topics...</li>
+            </ul>
+        </aside>
+
+        <!-- Course Content -->
+        <div class="w-full md:w-3/4">
+            <div class="bg-white rounded-lg border border-gray-200 p-8">
+                <p id="course-name" class="text-sm text-black font-semibold mb-1">Course</p>
+                <h1 id="topic-title" class="text-3xl font-bold text-black mb-6">Select a module</h1>
+                
+                <div id="topic-content" class="prose max-w-none text-gray-700 mb-8">
+                    <p class="text-gray-500">Loading content...</p>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <button id="prev-btn" onclick="navigateTopic(-1)" class="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium transition">Previous</button>
+                    <button id="complete-btn" onclick="toggleTopicStatus()" class="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 font-medium transition">Mark Complete</button>
+                    <button id="next-btn" onclick="navigateTopic(1)" class="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 font-medium transition">Next</button>
+                </div>
+                <div id="topic-quiz" class="mt-6"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let currentCourse = null;
+        let allTopics = [];
+        let currentTopicIndex = 0;
+
+        const getParam = name => new URLSearchParams(location.search).get(name);
+
+        async function loadCourseDetail() {
+            if (!requireAuth()) return;
+            const courseId = getParam('id') || '1';
+            const reqTopicId = getParam('topic_id');
+
+            try {
+                currentCourse = await apiRequest('GET', `/api/courses/${courseId}`);
+                document.getElementById('course-name').innerText = currentCourse.name;
+
+                allTopics = (currentCourse.skills || []).flatMap(s => s.topics || []);
+
+                if (reqTopicId) {
+                    const idx = allTopics.findIndex(t => String(t.id) === String(reqTopicId));
+                    if (idx !== -1) currentTopicIndex = idx;
+                } else {
+                    const firstIncomplete = allTopics.findIndex(t => t.status !== 'completed');
+                    if (firstIncomplete !== -1) currentTopicIndex = firstIncomplete;
+                }
+
+                renderTopics();
+            } catch (err) {
+                document.getElementById('topic-title').innerText = err.message;
+                document.getElementById('topic-content').innerHTML = '';
+            }
+        }
+
+        function renderTopics() {
+            const topicList = document.getElementById('topic-list');
+            if (allTopics.length === 0) {
+                topicList.innerHTML = '<li class="text-gray-500">No lessons yet.</li>';
+                document.getElementById('topic-content').innerHTML = '<p class="text-gray-500">This course has no lessons yet. Check back later.</p>';
+                document.getElementById('complete-btn').parentElement.style.display = 'none';  // prev / complete / next need a lesson
+                return;
+            }
+            
+            topicList.innerHTML = allTopics.map((t, idx) => {
+                const isSelected = idx === currentTopicIndex;
+                const isCompleted = t.status === 'completed';
+                const cls = isSelected
+                    ? 'text-black bg-gray-100 border border-gray-300 font-medium'
+                    : isCompleted ? 'text-gray-500 bg-gray-50 hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-50';
+                const dot = isCompleted
+                    ? '<span class="w-4 h-4 mr-2 rounded-full bg-black border-2 border-black flex-shrink-0"></span>'
+                    : `<span class="w-4 h-4 mr-2 rounded-full border-2 ${isSelected ? 'border-black' : 'border-gray-300'} flex-shrink-0"></span>`;
+                return `<li onclick="selectTopic(${idx})" class="flex items-center p-2 rounded cursor-pointer transition ${cls}">${dot}<span class="truncate">${escapeHtml(t.name)}</span></li>`;
+            }).join('');
+
+            const topic = allTopics[currentTopicIndex];
+            document.getElementById('topic-title').innerText = topic.name;
+
+            let resourcesHtml = '';
+            if (topic.resources && topic.resources.length > 0) {
+                resourcesHtml = `
+                    <p class="mb-2 font-semibold text-black">Learning Resources:</p>
+                    <ul class="list-disc pl-5 space-y-2 text-black">
+                        ${topic.resources.map(r => `<li><a href="${/^https?:\/\//i.test(r.url || '') ? escapeHtml(r.url) : '#'}" target="_blank" rel="noopener" class="text-black underline">${escapeHtml(r.title)} (${escapeHtml(r.resource_type || 'link')})</a></li>`).join('')}
+                    </ul>
+                `;
+            }
+
+            document.getElementById('topic-content').innerHTML = `
+                <p class="mb-4">${escapeHtml(topic.description || 'No description available for this topic.')}</p>
+                <div class="mb-4 text-sm text-gray-500">
+                    <span>Difficulty: <strong>${escapeHtml(topic.difficulty || 'N/A')}</strong></span> | 
+                    <span>Est. Hours: <strong>${escapeHtml(topic.estimated_hours || 'N/A')}</strong></span>
+                </div>
+                ${resourcesHtml}
+            `;
+
+            const completeBtn = document.getElementById('complete-btn');
+            completeBtn.className = 'px-6 py-2 bg-black text-white rounded hover:bg-gray-800 font-medium transition';
+            completeBtn.innerText = topic.status === 'completed' ? 'Unmark Complete' : 'Mark Complete';
+
+            const quizDiv = document.getElementById('topic-quiz');
+            if (topic.exams && topic.exams.length > 0) {
+                quizDiv.innerHTML = `
+                    <div class="bg-white border border-gray-200 rounded p-4">
+                        <p class="font-semibold text-black mb-2">Topic Quiz:</p>
+                        ${topic.exams.map(e => `
+                            <div class="flex items-center justify-between gap-3 py-1">
+                                <span class="text-gray-700">${escapeHtml(e.title)}</span>
+                                <a href="assessments.html?id=${e.id}" class="inline-block bg-black text-white font-medium py-1 px-4 rounded hover:bg-gray-800 transition text-sm">Take Quiz</a>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                quizDiv.innerHTML = '';
+            }
+
+            document.getElementById('prev-btn').disabled = currentTopicIndex === 0;
+            document.getElementById('next-btn').disabled = currentTopicIndex === allTopics.length - 1;
+        }
+
+        function selectTopic(idx) {
+            currentTopicIndex = idx;
+            renderTopics();
+        }
+
+        function navigateTopic(dir) {
+            const nextIdx = currentTopicIndex + dir;
+            if (nextIdx >= 0 && nextIdx < allTopics.length) {
+                currentTopicIndex = nextIdx;
+                renderTopics();
+            }
+        }
+
+        async function toggleTopicStatus() {
+            if (allTopics.length === 0) return;
+            const topic = allTopics[currentTopicIndex];
+            const endpoint = topic.status === 'completed' ? 'uncomplete' : 'complete';
+
+            try {
+                topic.status = (await apiRequest('POST', `/api/topics/${topic.id}/${endpoint}`)).status;
+                renderTopics();
+            } catch (err) { document.getElementById('complete-btn').innerText = 'Could not save. Try again'; }
+        }
+
+        loadCourseDetail();
+    </script>
+</body>
+</html>

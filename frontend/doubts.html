@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doubts - Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="common.js"></script>
+</head>
+<body class="bg-white min-h-screen text-black">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="w-full mx-auto px-4 sm:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-black">LearningApp</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm font-medium">
+                    <a href="dashboard.html" class="text-gray-500 hover:text-black">Dashboard</a>
+                    <a href="courses.html" class="text-gray-500 hover:text-black">Courses</a>
+                    <a href="doubts.html" class="text-black">Doubts</a>
+                    <a href="profile.html" class="text-gray-500 hover:text-black">Profile</a>
+                    <a id="teacher-link" href="teacher.html" class="text-gray-500 hover:text-black hidden">Teacher Corner</a>
+                    <a id="admin-link" href="admin.html" class="text-gray-500 hover:text-black hidden">Administration</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full mx-auto px-4 sm:px-8 py-8">
+        <h1 class="text-3xl font-bold text-black mb-6">Doubts &amp; Discussions</h1>
+
+        <section id="notifications" class="hidden border border-gray-200 rounded-lg p-6 mb-6"></section>
+
+        <!-- Ask a question -->
+        <p id="admin-note" class="hidden text-sm text-gray-500 mb-8">Admins can read every discussion below but cannot post.</p>
+        <section id="ask-section" class="border border-gray-200 rounded-lg p-6 mb-8 max-w-2xl">
+            <h2 class="text-lg font-bold text-black mb-4">Ask a question</h2>
+            <form id="ask-form" onsubmit="submitDoubt(event)" class="space-y-4 text-sm">
+                <div>
+                    <label for="ask-path" class="block font-medium mb-1">Learning path</label>
+                    <select id="ask-path" required class="border border-gray-300 px-3 py-2 w-full bg-white">
+                        <option value="">Loading learning paths...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ask-question" class="block font-medium mb-1">Question</label>
+                    <textarea id="ask-question" rows="4" maxlength="4000" required class="border border-gray-300 px-3 py-2 w-full"></textarea>
+                </div>
+                <p class="text-gray-500">Your question becomes a discussion that every student and teacher can see and reply to.</p>
+                <button id="ask-btn" class="bg-black text-white font-medium py-2 px-5 disabled:bg-gray-500">Submit</button>
+                <p id="ask-msg" class="hidden"></p>
+            </form>
+        </section>
+
+        <!-- The student's own questions -->
+        <section class="mb-8">
+            <h2 class="text-lg font-bold text-black mb-3">Your Questions</h2>
+            <ul id="mine-list" class="border border-gray-200 rounded-lg text-sm">
+                <li class="py-3 px-4">Loading...</li>
+            </ul>
+        </section>
+
+        <!-- Every student's discussions -->
+        <section id="discussions" class="mb-8">
+            <h2 class="text-lg font-bold text-black mb-3">All Discussions</h2>
+            <ul id="all-list" class="border border-gray-200 rounded-lg text-sm">
+                <li class="py-3 px-4">Loading...</li>
+            </ul>
+        </section>
+
+    </main>
+
+    <script>
+        const short = s => s.length > 90 ? s.slice(0, 90) + '…' : s;
+
+        function showMsg(text, isError) {
+            const el = document.getElementById('ask-msg');
+            el.innerText = text;
+            el.className = isError ? 'border-2 border-black bg-gray-100 p-2 font-bold' : 'border border-black p-2';
+        }
+
+        async function loadPaths() {
+            const sel = document.getElementById('ask-path');
+            try {
+                const paths = (await apiRequest('GET', '/api/learning-paths')).learning_paths || [];
+                sel.innerHTML = '<option value="">Select a learning path</option>' +
+                    paths.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+                const student = JSON.parse(localStorage.getItem('student') || 'null');
+                if (student && student.learning_path_id) sel.value = student.learning_path_id;
+            } catch (err) { sel.innerHTML = '<option value="">Could not load learning paths</option>'; }
+        }
+
+        async function submitDoubt(e) {
+            e.preventDefault();
+            const btn = document.getElementById('ask-btn');
+            btn.disabled = true; btn.innerText = 'Submitting...'; document.getElementById('ask-msg').className = 'hidden';
+            try {
+                await apiRequest('POST', '/api/doubts', {
+                    learning_path_id: parseInt(document.getElementById('ask-path').value, 10),
+                    question: document.getElementById('ask-question').value
+                });
+                document.getElementById('ask-question').value = '';
+                showMsg('Your question was submitted.', false);
+                loadLists();
+            } catch (err) { showMsg(err.message, true); }
+            btn.disabled = false; btn.innerText = 'Submit';
+        }
+
+        async function fillList(elId, path, key, empty, showAuthor) {
+            const el = document.getElementById(elId);
+            try {
+                el.innerHTML = (await apiRequest('GET', path))[key].map(d => `
+                <li class="flex items-center justify-between gap-4 py-3 px-4 border-t border-gray-100 first:border-t-0">
+                    <span class="break-words"><span class="font-bold text-black">${escapeHtml(short(d.question))}</span>${showAuthor ? `<span class="block text-xs text-gray-500">Asked by ${d.mine ? 'you' : escapeHtml(d.author)}</span>` : ''}</span>
+                    <a href="doubt.html?id=${d.id}" class="bg-black text-white font-medium py-1 px-4 whitespace-nowrap">View discussion</a>
+                </li>`).join('') || `<li class="py-3 px-4 text-gray-500">${empty}</li>`;
+            } catch (err) { el.innerHTML = '<li class="py-3 px-4">Could not load this list.</li>'; }
+        }
+
+        function loadLists() {
+            fillList('mine-list', '/api/doubts/mine', 'doubts', 'You have not asked anything yet.', false);
+            fillList('all-list', '/api/discussions', 'discussions', 'No discussions yet.', true);
+        }
+
+        if (requireAuth()) {
+            const admin = localStorage.getItem('role') === 'admin';  // display only; the server rejects admin posts
+            document.getElementById('ask-section').classList.toggle('hidden', admin);
+            document.getElementById('admin-note').classList.toggle('hidden', !admin);
+            loadPaths();
+            loadLists();
+            showNotifications('notifications');
+        }
+    </script>
+</body>
+</html>
