@@ -121,16 +121,3 @@ frontend/
    ```
 6. Open http://localhost:8081 in the browser.
 
-## Security
-
-- Every request is checked on the server using the Clerk login token.
-- The role (student, teacher or admin) is decided by the server, not by the browser.
-- Secret keys stay on the server and are never sent to the browser.
-- The `.env` file is not uploaded to git.
-
-## Limitations
-
-- Lists of discussions are not split into pages yet.
-- Teachers cannot edit their application after it is sent.
-- There are no automated tests. Testing was done by hand with a student, a teacher and an admin account.
-
